@@ -15,7 +15,7 @@ def test_health_and_provider_endpoints(config_path):
         health = client.get("/health")
         assert health.status_code == 200
         payload = health.json()
-        assert payload["drone_count"] == 11
+        assert payload["drone_count"] == 9
 
         providers = client.get("/v1/providers")
         assert providers.status_code == 200
@@ -27,7 +27,7 @@ def test_health_and_provider_endpoints(config_path):
 
         drones = client.get("/v1/drones")
         assert drones.status_code == 200
-        assert len(drones.json()) == 11
+        assert len(drones.json()) == 9
 
 
 def test_chat_json_and_streaming(config_path, tmp_path):
@@ -117,24 +117,6 @@ def test_chat_opencode_glm51_json(config_path, tmp_path):
         assert response.status_code == 200
         payload = response.json()
         assert payload["final_text"] == "opencode:hello"
-        assert payload["provider_session_ref"]
-
-
-def test_chat_gemini_flash_lite_json(config_path, tmp_path):
-    app = create_app()
-    with TestClient(app) as client:
-        body = {
-            "provider": "gemini",
-            "model": "gemini-3.1-flash-lite-preview",
-            "workspace_path": str(tmp_path.resolve()),
-            "mode": "new",
-            "prompt": "hello",
-            "stream": False,
-        }
-        response = client.post("/v1/chat", json=body)
-        assert response.status_code == 200
-        payload = response.json()
-        assert payload["final_text"] == "gemini:hello"
         assert payload["provider_session_ref"]
 
 
@@ -236,7 +218,7 @@ def test_models_endpoint_returns_all_models(config_path):
     app = create_app()
     with TestClient(app) as client:
         models = client.get("/v1/models").json()
-        assert len(models) == 11  # 3 gemini + 2 codex + 2 claude + 1 kimi + 1 copilot + 2 opencode
+        assert len(models) == 9  # 1 gemini + 2 codex + 2 claude + 1 kimi + 1 copilot + 2 opencode
         providers_seen = {m["provider"] for m in models}
         assert "claude" in providers_seen
         assert "copilot" in providers_seen

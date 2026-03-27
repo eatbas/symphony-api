@@ -32,7 +32,7 @@ Interactive API docs are available at `/docs` (Swagger) and `/redoc` (ReDoc).
 
 | Provider     | CLI executable | Default models                           | Resume |
 | ------------ | -------------- | ---------------------------------------- | ------ |
-| **Gemini**   | `gemini`       | `gemini-3.1-pro-preview`, `gemini-3-flash-preview`, `gemini-3.1-flash-lite-preview` | Yes |
+| **Gemini**   | `gemini`       | `gemini-3-flash-preview`                 | Yes |
 | **Codex**    | `codex`        | `codex-5.3`, `gpt-5.4`, `gpt-5.4-mini`  | Yes    |
 | **Claude**   | `claude`       | `opus`, `sonnet`, `haiku`                | Yes    |
 | **Kimi**     | `kimi`         | `kimi-code/kimi-for-coding`              | Yes    |
@@ -124,7 +124,7 @@ Sends a prompt to a provider. Supports streaming (SSE) and JSON response modes.
 ```json
 {
   "provider": "gemini",
-  "model": "gemini-3.1-pro-preview",
+  "model": "gemini-3-flash-preview",
   "workspace_path": "/home/user/project",
   "mode": "resume",
   "prompt": "say hi in one word",

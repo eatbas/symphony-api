@@ -9,7 +9,7 @@ path = ""
 [providers.gemini]
 enabled = true
 executable = ""
-models = ["gemini-3.1-pro-preview", "gemini-3-flash-preview", "gemini-3.1-flash-lite-preview"]
+models = ["gemini-3-flash-preview"]
 default_options = { extra_args = [] }
 # Desktop app manages timeouts via agent_timeout_ms; 0 = no sidecar timeout.
 cli_timeout = 0

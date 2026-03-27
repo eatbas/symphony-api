@@ -26,7 +26,7 @@ async def test_colony_boots_all_drones(loaded_config):
     await manager.start()
     try:
         drones = manager.drone_info()
-        assert len(drones) == 11
+        assert len(drones) == 9
         assert all(drone.ready for drone in drones)
     finally:
         await manager.stop()
@@ -56,17 +56,17 @@ async def test_resume_rejects_model_change_in_same_runtime(loaded_config):
     manager = Colony(loaded_config)
     await manager.start()
     try:
-        drone = manager.get_drone(ProviderName.GEMINI, "gemini-3.1-pro-preview")
+        drone = manager.get_drone(ProviderName.CLAUDE, "sonnet")
         assert drone is not None
-        handle = await drone.submit(_new_request(ProviderName.GEMINI, "gemini-3.1-pro-preview"))
+        handle = await drone.submit(_new_request(ProviderName.CLAUDE, "sonnet"))
         result = await handle.result_future
-        assert result.provider_session_ref == "gemini-session-new"
+        assert result.provider_session_ref is not None
 
-        alt_drone = manager.get_drone(ProviderName.GEMINI, "gemini-3-flash-preview")
+        alt_drone = manager.get_drone(ProviderName.CLAUDE, "opus")
         assert alt_drone is not None
         resume_request = ChatRequest(
-            provider=ProviderName.GEMINI,
-            model="gemini-3-flash-preview",
+            provider=ProviderName.CLAUDE,
+            model="opus",
             workspace_path=str(Path.cwd().resolve()),
             mode=ChatMode.RESUME,
             prompt="again",

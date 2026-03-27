@@ -53,7 +53,7 @@ path = ""
 [providers.gemini]
 enabled = true
 executable = "{escaped_providers['gemini']}"
-models = ["gemini-3.1-pro-preview", "gemini-3-flash-preview", "gemini-3.1-flash-lite-preview"]
+models = ["gemini-3-flash-preview"]
 default_options = {{ extra_args = [] }}
 
 [providers.codex]
