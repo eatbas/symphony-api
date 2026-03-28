@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from ..models import ChatRequest, ChatResponse, ErrorDetail, StopResponse
 from ..colony import JobHandle
-from ._deps import get_colony
+from ._deps import get_colony, get_ready_colony
 
 router = APIRouter()
 
@@ -36,7 +36,7 @@ async def _stream_handle_events(handle: JobHandle) -> AsyncIterator[str]:
     },
 )
 async def chat(request: Request, body: ChatRequest) -> StreamingResponse | JSONResponse:
-    colony = get_colony(request)
+    colony = await get_ready_colony(request)
 
     if not colony.available_providers.get(body.provider, False):
         raise HTTPException(

@@ -71,8 +71,13 @@ def create_app() -> FastAPI:
 
     updater = CLIUpdater(manager=colony, config=config.updater)
 
-    @asynccontextmanager
-    async def lifespan(_: FastAPI):
+    async def _boot_colony() -> None:
+        """Boot drones and run the first version check in the background.
+
+        This keeps the lifespan yield instant so uvicorn starts accepting
+        connections immediately — the sidecar health check passes in <1s
+        instead of waiting 8-12s for all bash sessions to spawn.
+        """
         await colony.start()
 
         available = [p.value for p, ok in colony.available_providers.items() if ok]
@@ -84,18 +89,24 @@ def create_app() -> FastAPI:
             len(colony._all_drones()),
         )
 
-        # Run the first version check before accepting requests so the UI
-        # has data immediately.  A generous timeout keeps startup fast even
-        # when npm or the network is slow.
         try:
             await asyncio.wait_for(updater.check_and_update_all(), timeout=30)
         except Exception:
-            logger.warning("Initial CLI version check did not finish in time — continuing startup")
+            logger.warning("Initial CLI version check did not finish in time")
 
+    @asynccontextmanager
+    async def lifespan(_: FastAPI):
+        boot_task = asyncio.create_task(_boot_colony())
         updater.start()
         try:
             yield
         finally:
+            if not boot_task.done():
+                boot_task.cancel()
+                try:
+                    await boot_task
+                except asyncio.CancelledError:
+                    pass
             await updater.stop()
             await colony.stop()
 

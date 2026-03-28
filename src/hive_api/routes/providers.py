@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Query, Request
 
 from ..models import ModelDetail, ProviderCapability, DroneInfo
-from ._deps import get_colony
+from ._deps import get_ready_colony
 
 router = APIRouter()
 
@@ -19,7 +19,8 @@ async def providers(
     request: Request,
     all: bool = Query(False, description="Include unavailable providers"),
 ) -> list[ProviderCapability]:
-    caps = get_colony(request).capabilities()
+    colony = await get_ready_colony(request)
+    caps = colony.capabilities()
     if all:
         return caps
     return [c for c in caps if c.available]
@@ -32,7 +33,8 @@ async def providers(
     response_model=list[ModelDetail],
 )
 async def models(request: Request) -> list[ModelDetail]:
-    return get_colony(request).model_details()
+    colony = await get_ready_colony(request)
+    return colony.model_details()
 
 
 @router.get(
@@ -42,4 +44,5 @@ async def models(request: Request) -> list[ModelDetail]:
     response_model=list[DroneInfo],
 )
 async def drones(request: Request) -> list[DroneInfo]:
-    return get_colony(request).drone_info()
+    colony = await get_ready_colony(request)
+    return colony.drone_info()

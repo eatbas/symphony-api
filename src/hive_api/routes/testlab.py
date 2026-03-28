@@ -17,7 +17,7 @@ from ..models import (
     TestVerifyResponse,
     TestVerifyResultItem,
 )
-from ._deps import get_colony
+from ._deps import get_ready_colony
 
 router = APIRouter(tags=["Test Lab"])
 
@@ -66,7 +66,7 @@ async def test_verify(request: TestVerifyRequest) -> TestVerifyResponse:
     responses={503: {"description": "No cheap model drone is available.", "model": ErrorDetail}},
 )
 async def test_generate_scenario(request: Request, body: TestGenerateRequest) -> TestGenerateResponse:
-    colony = get_colony(request)
+    colony = await get_ready_colony(request)
 
     # Honour explicit provider/model from the UI dropdown; fall back to
     # the cheapest available model when the user selects "auto".

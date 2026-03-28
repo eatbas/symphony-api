@@ -15,6 +15,7 @@ from .handle import JobHandle, stopped_event
 logger = logging.getLogger("hive_api.colony")
 
 _MAX_COMPLETED_JOBS = 1000
+_BASH_VERSION_TIMEOUT_SECONDS = 1.0
 
 
 class Colony:
@@ -28,12 +29,15 @@ class Colony:
         self.session_models: dict[tuple[ProviderName, str], str] = {}
         self.available_providers: dict[ProviderName, bool] = {}
         self._jobs: dict[str, JobHandle] = {}
+        self._ready = asyncio.Event()
 
     def _all_drones(self) -> list[Drone]:
         """Return a flat list of every drone across all pools."""
         return [drone for pool in self.drones.values() for drone in pool]
 
     async def start(self) -> None:
+        all_pending: list[tuple[tuple[ProviderName, str], Drone]] = []
+
         for provider, provider_config in self.config.providers.items():
             if not provider_config.enabled:
                 self.available_providers[provider] = False
@@ -59,7 +63,6 @@ class Colony:
                 executable,
                 len(provider_config.models),
             )
-            pending: list[tuple[tuple[ProviderName, str], Drone]] = []
             for model in provider_config.models:
                 drone = Drone(
                     provider=provider,
@@ -71,10 +74,13 @@ class Colony:
                     session_models=self.session_models,
                     cli_timeout=provider_config.cli_timeout,
                 )
-                pending.append(((provider, model), drone))
-            await asyncio.gather(*(w.start() for _, w in pending))
-            for key, w in pending:
-                self.drones.setdefault(key, []).append(w)
+                all_pending.append(((provider, model), drone))
+
+        await asyncio.gather(*(w.start() for _, w in all_pending))
+        for key, w in all_pending:
+            self.drones.setdefault(key, []).append(w)
+
+        self._ready.set()
 
     async def stop(self) -> None:
         await asyncio.gather(
@@ -96,6 +102,8 @@ class Colony:
 
     async def acquire_drone(self, provider: ProviderName, model: str) -> Drone | None:
         """Acquire the least-busy drone, scaling the pool lazily if needed.
+
+        Waits for the colony to finish booting before inspecting the pool.
 
         1. Return an idle drone from the pool if one exists.
         2. If all drones are busy and the pool is below *concurrency*, spawn a
@@ -301,10 +309,13 @@ class Colony:
         for drone in self._all_drones():
             if drone.ready and not drone.busy and drone.queue.qsize() == 0:
                 try:
-                    _, output = await drone.run_quick_command("bash --version | head -1\n__hive_exit=0")
+                    _, output = await drone.run_quick_command(
+                        "bash --version | head -1\n__hive_exit=0",
+                        timeout=_BASH_VERSION_TIMEOUT_SECONDS,
+                    )
                     return output.strip() if output.strip() else None
                 except Exception:
-                    return None
+                    continue
         return None
 
     def health_details(self) -> list[str]:
