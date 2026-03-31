@@ -53,3 +53,37 @@ def test_kimi_parse_emits_output_delta():
     events = adapter.parse_output_line('{"role":"assistant","content":[{"type":"text","text":"hello world"}]}', state)
     assert any(e["type"] == "output_delta" for e in events)
     assert "hello world" in state.output_chunks
+
+
+def test_kimi_parse_emits_tool_use():
+    adapter = KimiAdapter()
+    state = ParseState()
+    line = '{"content":[{"type":"tool_use","name":"write_file","input":{"path":"src/i18n.ts"}}]}'
+    events = adapter.parse_output_line(line, state)
+    assert any(e["type"] == "output_delta" for e in events)
+    assert any("write_file" in chunk for chunk in state.output_chunks)
+    assert any("src/i18n.ts" in chunk for chunk in state.output_chunks)
+
+
+def test_kimi_parse_emits_tool_result():
+    adapter = KimiAdapter()
+    state = ParseState()
+    line = '{"content":[{"type":"tool_result","output":"File written successfully"}]}'
+    events = adapter.parse_output_line(line, state)
+    assert any(e["type"] == "output_delta" for e in events)
+    assert "File written successfully" in state.output_chunks
+
+
+def test_kimi_parse_emits_plain_text():
+    adapter = KimiAdapter()
+    state = ParseState()
+    events = adapter.parse_output_line("Thinking about the implementation...", state)
+    assert any(e["type"] == "output_delta" for e in events)
+    assert "Thinking about the implementation..." in state.output_chunks
+
+
+def test_kimi_parse_skips_empty_lines():
+    adapter = KimiAdapter()
+    state = ParseState()
+    events = adapter.parse_output_line("   ", state)
+    assert events == []
