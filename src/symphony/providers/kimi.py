@@ -65,12 +65,41 @@ class KimiAdapter(ProviderAdapter):
         )
 
     def parse_output_line(self, line: str, state: ParseState) -> list[dict[str, object]]:
-        obj = self._parse_json_or_warn(line, state)
+        obj = self._parse_json(line)
         if obj is None:
+            # Non-JSON lines (plain text progress, thinking, etc.) — emit as-is.
+            stripped = line.strip()
+            if stripped:
+                return self._append_chunk(state, stripped)
             return []
 
         events: list[dict[str, object]] = []
         for item in obj.get("content", []):
-            if item.get("type") == "text":
+            item_type = item.get("type", "")
+            if item_type == "text":
                 events.extend(self._append_chunk(state, str(item.get("text", ""))))
+            elif item_type == "tool_use":
+                name = item.get("name", "unknown")
+                tool_input = item.get("input", {})
+                summary = self._summarise_tool_call(name, tool_input)
+                events.extend(self._append_chunk(state, summary))
+            elif item_type == "tool_result":
+                output = str(item.get("output", item.get("content", "")))
+                if output.strip():
+                    # Truncate long tool results to keep the stream readable.
+                    display = output.strip()[:300]
+                    events.extend(self._append_chunk(state, display))
         return events
+
+    @staticmethod
+    def _summarise_tool_call(name: str, tool_input: dict) -> str:
+        """Produce a concise human-readable summary of a tool call."""
+        path = tool_input.get("path") or tool_input.get("file_path") or ""
+        command = tool_input.get("command") or ""
+        if path:
+            return f"⚙ {name}: {path}"
+        if command:
+            # Show first 120 chars of the command.
+            short = command[:120] + ("…" if len(command) > 120 else "")
+            return f"⚙ {name}: {short}"
+        return f"⚙ {name}"
