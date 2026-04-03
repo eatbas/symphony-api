@@ -1,4 +1,4 @@
-from .chat import ChatRequest, ChatResponse, StopResponse
+from .chat import ChatAcceptedResponse, ChatRequest, ChatResponse, ScoreSnapshot, StopResponse
 from .enums import ChatMode, ScoreStatus, InstrumentName
 from .provider import (
     CLIVersionStatus,
@@ -8,7 +8,6 @@ from .provider import (
     ProviderCapability,
     MusicianInfo,
 )
-from .sse import SSECompleted, SSEFailed, SSEOutputDelta, SSEProviderSession, SSERunStarted, SSEStopped
 from .testlab import (
     TestGenerateRequest,
     TestGenerateResponse,
@@ -25,6 +24,8 @@ __all__ = [
     "ScoreStatus",
     "ChatRequest",
     "ChatResponse",
+    "ChatAcceptedResponse",
+    "ScoreSnapshot",
     "StopResponse",
     "TestVerifyItem",
     "TestVerifyRequest",
@@ -39,10 +40,4 @@ __all__ = [
     "HealthResponse",
     "CLIVersionStatus",
     "ErrorDetail",
-    "SSERunStarted",
-    "SSEProviderSession",
-    "SSEOutputDelta",
-    "SSECompleted",
-    "SSEFailed",
-    "SSEStopped",
 ]

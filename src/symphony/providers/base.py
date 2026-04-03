@@ -92,7 +92,6 @@ class ParseState:
 class ProviderAdapter:
     name: InstrumentName
     supports_resume = True
-    supports_streaming = True
     supports_model_override = True
     session_reference_format = "provider-native"
     default_executable: str

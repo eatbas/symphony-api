@@ -27,7 +27,7 @@ class InstrumentConfig:
     models: list[str] = field(default_factory=lambda: ["default"])
     default_options: dict[str, Any] = field(default_factory=dict)
     cli_timeout: float = 300.0  # seconds; 0 = no timeout
-    idle_timeout: float = 300.0  # seconds without output before assuming CLI is stuck; 0 = no idle timeout
+    idle_timeout: float = 0.0  # seconds without output before assuming CLI is stuck; 0 = no idle timeout
     concurrency: int = 4  # max concurrent musicians per model
 
 
@@ -56,7 +56,7 @@ def _instrument_config(raw: dict[str, Any] | None) -> InstrumentConfig:
         models=models or ["default"],
         default_options=dict(raw.get("default_options", {})),
         cli_timeout=float(raw.get("cli_timeout", 300.0)),
-        idle_timeout=float(raw.get("idle_timeout", 300.0)),
+        idle_timeout=float(raw.get("idle_timeout", 0.0)),
         concurrency=int(raw.get("concurrency", 4)),
     )
 

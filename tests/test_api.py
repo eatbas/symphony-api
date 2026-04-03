@@ -1,8 +1,29 @@
 import os
+import time
 from fastapi.testclient import TestClient
 
 from symphony.models import InstrumentName
 from symphony.service import create_app
+
+
+def submit_score(client: TestClient, body: dict) -> dict:
+    response = client.post("/v1/chat", json=body)
+    assert response.status_code == 202
+    payload = response.json()
+    assert payload["score_id"]
+    return payload
+
+
+def wait_for_terminal_score(client: TestClient, score_id: str, timeout_seconds: float = 5.0) -> dict:
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        response = client.get(f"/v1/chat/{score_id}")
+        assert response.status_code == 200
+        payload = response.json()
+        if payload["status"] in {"completed", "failed", "stopped"}:
+            return payload
+        time.sleep(0.05)
+    raise AssertionError(f"Score {score_id} did not reach a terminal state within {timeout_seconds}s")
 
 
 def test_health_and_provider_endpoints(config_path):
@@ -39,29 +60,27 @@ def test_chat_json_and_streaming(config_path, tmp_path):
             "workspace_path": str(tmp_path.resolve()),
             "mode": "new",
             "prompt": "hello",
-            "stream": False,
         }
-        response = client.post("/v1/chat", json=body)
-        assert response.status_code == 200
-        payload = response.json()
+        accepted = submit_score(client, body)
+        payload = wait_for_terminal_score(client, accepted["score_id"])
         assert payload["final_text"] == "claude:hello"
         assert payload["provider_session_ref"]
 
-        stream_body = {
+        ws_body = {
             "provider": "codex",
             "model": "gpt-5.3-codex",
             "workspace_path": str(tmp_path.resolve()),
             "mode": "new",
             "prompt": "hello",
-            "stream": True,
         }
-        with client.stream("POST", "/v1/chat", json=stream_body) as stream_response:
-            assert stream_response.status_code == 200
-            text = "".join(stream_response.iter_text())
-        assert "event: run_started" in text
-        assert "event: provider_session" in text
-        assert "event: completed" in text
-        assert "codex:hello" in text
+        accepted = submit_score(client, ws_body)
+        score_id = accepted["score_id"]
+        with client.websocket_connect(f"/v1/chat/{score_id}/ws") as websocket:
+            initial = websocket.receive_json()
+            assert initial["type"] == "score_snapshot"
+            assert initial["score"]["score_id"] == score_id
+        terminal = wait_for_terminal_score(client, score_id)
+        assert terminal["final_text"] == "codex:hello"
 
         assert not list(tmp_path.rglob("*.sqlite"))
 
@@ -75,11 +94,9 @@ def test_chat_copilot_json(config_path, tmp_path):
             "workspace_path": str(tmp_path.resolve()),
             "mode": "new",
             "prompt": "hello",
-            "stream": False,
         }
-        response = client.post("/v1/chat", json=body)
-        assert response.status_code == 200
-        payload = response.json()
+        accepted = submit_score(client, body)
+        payload = wait_for_terminal_score(client, accepted["score_id"])
         assert payload["final_text"] == "copilot:hello"
         assert payload["provider_session_ref"]
 
@@ -93,11 +110,9 @@ def test_chat_opencode_json(config_path, tmp_path):
             "workspace_path": str(tmp_path.resolve()),
             "mode": "new",
             "prompt": "hello",
-            "stream": False,
         }
-        response = client.post("/v1/chat", json=body)
-        assert response.status_code == 200
-        payload = response.json()
+        accepted = submit_score(client, body)
+        payload = wait_for_terminal_score(client, accepted["score_id"])
         assert payload["final_text"] == "opencode:hello"
         assert payload["provider_session_ref"]
 
@@ -111,11 +126,9 @@ def test_chat_opencode_glm51_json(config_path, tmp_path):
             "workspace_path": str(tmp_path.resolve()),
             "mode": "new",
             "prompt": "hello",
-            "stream": False,
         }
-        response = client.post("/v1/chat", json=body)
-        assert response.status_code == 200
-        payload = response.json()
+        accepted = submit_score(client, body)
+        payload = wait_for_terminal_score(client, accepted["score_id"])
         assert payload["final_text"] == "opencode:hello"
         assert payload["provider_session_ref"]
 
@@ -132,7 +145,6 @@ def test_chat_returns_400_for_unavailable_provider(config_path, tmp_path):
             "workspace_path": str(tmp_path.resolve()),
             "mode": "new",
             "prompt": "hello",
-            "stream": False,
         }
         response = client.post("/v1/chat", json=body)
         assert response.status_code == 400
@@ -148,7 +160,6 @@ def test_chat_returns_404_for_unknown_musician(config_path, tmp_path):
             "workspace_path": str(tmp_path.resolve()),
             "mode": "new",
             "prompt": "hello",
-            "stream": False,
         }
         response = client.post("/v1/chat", json=body)
         assert response.status_code == 404
@@ -163,7 +174,6 @@ def test_chat_resume_requires_session_ref(config_path, tmp_path):
             "workspace_path": str(tmp_path.resolve()),
             "mode": "resume",
             "prompt": "hello",
-            "stream": False,
         }
         response = client.post("/v1/chat", json=body)
         assert response.status_code == 422
@@ -178,7 +188,6 @@ def test_chat_rejects_relative_workspace_path(config_path):
             "workspace_path": "relative/path",
             "mode": "new",
             "prompt": "hello",
-            "stream": False,
         }
         response = client.post("/v1/chat", json=body)
         assert response.status_code == 422
@@ -205,7 +214,6 @@ def test_providers_endpoint_shows_capabilities(config_path):
         providers = client.get("/v1/providers?all=true").json()
         for p in providers:
             assert "supports_resume" in p
-            assert "supports_streaming" in p
             assert "supports_model_override" in p
             assert "session_reference_format" in p
             assert "available" in p
@@ -259,7 +267,6 @@ def test_no_persistent_state_files_created(config_path, tmp_path):
             "workspace_path": str(tmp_path.resolve()),
             "mode": "new",
             "prompt": "hello",
-            "stream": False,
         }
         client.post("/v1/chat", json=body)
 
@@ -284,11 +291,9 @@ def test_stop_completed_score_is_idempotent(config_path, tmp_path):
             "workspace_path": str(tmp_path.resolve()),
             "mode": "new",
             "prompt": "hello",
-            "stream": False,
         }
-        response = client.post("/v1/chat", json=body)
-        assert response.status_code == 200
-        score_id = response.json()["score_id"]
+        accepted = submit_score(client, body)
+        score_id = accepted["score_id"]
         assert score_id
 
         stop_response = client.post(f"/v1/chat/{score_id}/stop")
@@ -307,16 +312,15 @@ def test_chat_response_includes_score_id(config_path, tmp_path):
             "workspace_path": str(tmp_path.resolve()),
             "mode": "new",
             "prompt": "hello",
-            "stream": False,
         }
         response = client.post("/v1/chat", json=body)
-        assert response.status_code == 200
+        assert response.status_code == 202
         payload = response.json()
         assert "score_id" in payload
         assert payload["score_id"]
 
 
-def test_streaming_includes_score_id_in_run_started(config_path, tmp_path):
+def test_websocket_snapshot_includes_score_id(config_path, tmp_path):
     app = create_app()
     with TestClient(app) as client:
         body = {
@@ -325,10 +329,9 @@ def test_streaming_includes_score_id_in_run_started(config_path, tmp_path):
             "workspace_path": str(tmp_path.resolve()),
             "mode": "new",
             "prompt": "hello",
-            "stream": True,
         }
-        with client.stream("POST", "/v1/chat", json=body) as stream_response:
-            assert stream_response.status_code == 200
-            text = "".join(stream_response.iter_text())
-        assert "event: run_started" in text
-        assert "score_id" in text
+        accepted = submit_score(client, body)
+        with client.websocket_connect(f"/v1/chat/{accepted['score_id']}/ws") as websocket:
+            payload = websocket.receive_json()
+            assert payload["type"] == "score_snapshot"
+            assert payload["score"]["score_id"] == accepted["score_id"]

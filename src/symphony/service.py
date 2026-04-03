@@ -34,6 +34,8 @@ The API maintains persistent musician pools for configured instrument/model pair
 enabling low-latency prompt execution without cold-start overhead.
 Pools scale lazily up to the per-instrument `concurrency` limit.
 
+Scores are submitted via `POST /v1/chat`, polled via `GET /v1/chat/{score_id}`,
+and observed live via `GET /v1/chat/{score_id}/ws`.
 Running scores can be stopped via `POST /v1/chat/{score_id}/stop`.
 
 **Instrument options** — per-request overrides via `provider_options`:
@@ -50,7 +52,7 @@ OPENAPI_TAGS = [
     {"name": "Providers", "description": "Query registered AI CLI instruments and capabilities."},
     {"name": "Models", "description": "Discover configured models across instruments."},
     {"name": "Musicians", "description": "Inspect runtime state of musician processes."},
-    {"name": "Chat", "description": "Submit prompts to AI instruments with JSON or SSE responses."},
+    {"name": "Chat", "description": "Submit prompts to AI instruments and track durable score snapshots."},
     {"name": "Updates", "description": "CLI version checking and auto-update management."},
     {"name": "Test Lab", "description": "Multi-model harness for NEW/RESUME verification workflows."},
     {"name": "Console", "description": "Built-in browser UI for interactive testing."},
@@ -70,6 +72,7 @@ def create_app() -> FastAPI:
         raise
 
     updater = CLIUpdater(manager=orchestra, config=config.updater)
+    orchestra.restore_scores()
 
     async def _boot_orchestra() -> None:
         """Boot musicians and run the first version check in the background.

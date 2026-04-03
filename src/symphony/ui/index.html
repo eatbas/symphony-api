@@ -49,10 +49,6 @@
                 <option value="resume">resume</option>
               </select>
             </div>
-            <div class="field">
-              <label for="stream">Response Mode</label>
-              <div class="toggle"><input id="stream" type="checkbox" checked><span>Stream with SSE parser</span></div>
-            </div>
           </div>
           <div class="field"><label for="workspace_path">Workspace Path</label><input id="workspace_path" type="text" value=""></div>
           <div class="field" id="session-row"><label for="provider_session_ref">Provider Session Ref</label><input id="provider_session_ref" type="text"></div>
@@ -68,7 +64,7 @@
       <div class="panel response-card">
         <h2>Response</h2>
         <div class="pill-row">
-          <span class="pill">stream events: <strong id="event-count">0</strong></span>
+          <span class="pill">live events: <strong id="event-count">0</strong></span>
           <span class="pill">current session: <strong id="session-ref">none</strong></span>
         </div>
         <div class="console-wrap">

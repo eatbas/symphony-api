@@ -16,7 +16,6 @@ class ProviderCapability(BaseModel):
     available: bool = Field(description="Whether the instrument executable was discovered at startup.")
     models: list[str] = Field(description="Configured model identifiers for this instrument.")
     supports_resume: bool = Field(description="Whether resume is supported.")
-    supports_streaming: bool = Field(description="Whether streaming output is supported.")
     supports_model_override: bool = Field(description="Whether model can be overridden.")
     session_reference_format: str = Field(description="Format of instrument session reference.")
 

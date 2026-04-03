@@ -30,10 +30,6 @@ class ChatRequest(BaseModel):
         default=None,
         description="Required when mode is 'resume'. Obtained from prior chat output.",
     )
-    stream: bool = Field(
-        default=True,
-        description="When true (default), returns Server-Sent Events. Otherwise returns JSON.",
-    )
     provider_options: dict[str, Any] = Field(
         default_factory=dict,
         description=(
@@ -52,7 +48,6 @@ class ChatRequest(BaseModel):
                     "workspace_path": "/home/user/project",
                     "mode": "new",
                     "prompt": "Explain the main entry point of this project.",
-                    "stream": True,
                     "provider_options": {},
                 },
                 {
@@ -62,7 +57,6 @@ class ChatRequest(BaseModel):
                     "mode": "resume",
                     "prompt": "Now refactor that function to use async/await.",
                     "provider_session_ref": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-                    "stream": False,
                     "provider_options": {"extra_args": ["--verbose"]},
                 },
             ]
@@ -89,7 +83,7 @@ class ChatRequest(BaseModel):
 
 
 class ChatResponse(BaseModel):
-    """Response returned for non-streaming chat requests."""
+    """Final CLI result produced by a completed score."""
 
     provider: InstrumentName = Field(description="Instrument that handled the request.")
     model: str = Field(description="Model that was used.")
@@ -114,6 +108,39 @@ class ChatResponse(BaseModel):
             ]
         }
     )
+
+
+class ChatAcceptedResponse(BaseModel):
+    """Immediate response returned when a score is accepted for execution."""
+
+    score_id: str = Field(description="ID of the submitted score.")
+    status: ScoreStatus = Field(description="Current lifecycle state of the score.")
+    provider: InstrumentName = Field(description="Instrument assigned to the score.")
+    model: str = Field(description="Model assigned to the score.")
+    created_at: str = Field(description="RFC 3339 timestamp when the score was created.")
+    started_at: str | None = Field(
+        default=None,
+        description="RFC 3339 timestamp when execution started, if already running.",
+    )
+
+
+class ScoreSnapshot(BaseModel):
+    """Authoritative persisted view of a score."""
+
+    score_id: str = Field(description="ID of the score.")
+    status: ScoreStatus = Field(description="Current lifecycle state of the score.")
+    provider: InstrumentName | None = Field(default=None, description="Instrument assigned to the score.")
+    model: str | None = Field(default=None, description="Model assigned to the score.")
+    accumulated_text: str = Field(default="", description="All captured output accumulated so far.")
+    final_text: str | None = Field(default=None, description="Final authoritative output text, if terminal.")
+    provider_session_ref: str | None = Field(default=None, description="Session reference for resuming later.")
+    error: str | None = Field(default=None, description="Failure or interruption message, if any.")
+    exit_code: int | None = Field(default=None, description="CLI exit code, if known.")
+    warnings: list[str] = Field(default_factory=list, description="Non-fatal warnings emitted by the CLI.")
+    created_at: str = Field(description="RFC 3339 timestamp when the score was created.")
+    started_at: str | None = Field(default=None, description="RFC 3339 timestamp when execution started.")
+    updated_at: str = Field(description="RFC 3339 timestamp when the score was last updated.")
+    finished_at: str | None = Field(default=None, description="RFC 3339 timestamp when execution finished.")
 
 
 class StopResponse(BaseModel):

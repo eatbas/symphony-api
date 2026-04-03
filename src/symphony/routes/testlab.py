@@ -100,7 +100,6 @@ async def test_generate_scenario(request: Request, body: TestGenerateRequest) ->
         workspace_path=body.workspace_path,
         mode=ChatMode.NEW,
         prompt=prompt_text,
-        stream=False,
     )
     handle = await musician.submit(chat_req)
     try:

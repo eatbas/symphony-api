@@ -11,7 +11,7 @@ class KimiAdapter(ProviderAdapter):
     name = InstrumentName.KIMI
     default_executable = "kimi"
     session_reference_format = "opaque-string"
-    _QUIET_ARGS = ["--quiet"]
+    _AUTOMATION_ARGS = ["--print", "--output-format", "stream-json"]
 
     def new_session_ref(self) -> str | None:
         return self._uuid()
@@ -24,7 +24,7 @@ class KimiAdapter(ProviderAdapter):
             "--thinking",
             "--session",
             session_ref,
-            *self._QUIET_ARGS,
+            *self._AUTOMATION_ARGS,
             "--prompt",
             prompt,
         ]
@@ -39,7 +39,7 @@ class KimiAdapter(ProviderAdapter):
             "--thinking",
             "--session",
             session_ref,
-            *self._QUIET_ARGS,
+            *self._AUTOMATION_ARGS,
             "--prompt",
             prompt,
         ]
@@ -71,7 +71,11 @@ class KimiAdapter(ProviderAdapter):
             return []
 
         events: list[dict[str, object]] = []
-        for item in obj.get("content", []):
+        content_items = obj.get("content", [])
+        if not isinstance(content_items, list):
+            content_items = []
+
+        for item in content_items:
             item_type = item.get("type", "")
             if item_type == "text":
                 events.extend(self._append_chunk(state, str(item.get("text", ""))))
@@ -83,9 +87,19 @@ class KimiAdapter(ProviderAdapter):
             elif item_type == "tool_result":
                 output = str(item.get("output", item.get("content", "")))
                 if output.strip():
-                    # Truncate long tool results to keep the stream readable.
-                    display = output.strip()[:300]
-                    events.extend(self._append_chunk(state, display))
+                    events.extend(self._append_chunk(state, self._summarise_tool_result(output)))
+
+        for tool_call in obj.get("tool_calls", []):
+            function = tool_call.get("function", {})
+            name = str(function.get("name", "unknown"))
+            tool_input = self._parse_tool_arguments(function.get("arguments"))
+            summary = self._summarise_tool_call(name, tool_input)
+            events.extend(self._append_chunk(state, summary))
+
+        if obj.get("role") == "tool":
+            content = obj.get("content")
+            if isinstance(content, str) and content.strip():
+                events.extend(self._append_chunk(state, self._summarise_tool_result(content)))
         return events
 
     @staticmethod
@@ -100,3 +114,17 @@ class KimiAdapter(ProviderAdapter):
             short = command[:120] + ("…" if len(command) > 120 else "")
             return f"⚙ {name}: {short}"
         return f"⚙ {name}"
+
+    def _parse_tool_arguments(self, raw_arguments: object) -> dict:
+        if isinstance(raw_arguments, dict):
+            return raw_arguments
+        if isinstance(raw_arguments, str):
+            parsed = self._parse_json(raw_arguments)
+            if isinstance(parsed, dict):
+                return parsed
+        return {}
+
+    @staticmethod
+    def _summarise_tool_result(output: str) -> str:
+        stripped = output.strip()
+        return stripped[:300]

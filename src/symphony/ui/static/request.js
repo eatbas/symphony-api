@@ -5,7 +5,6 @@ const modeSelect = document.getElementById("mode");
 const sessionInput = document.getElementById("provider_session_ref");
 const workspaceInput = document.getElementById("workspace_path");
 const promptInput = document.getElementById("prompt");
-const streamInput = document.getElementById("stream");
 const consoleEl = document.getElementById("console");
 const sessionRefEl = document.getElementById("session-ref");
 const eventCountEl = document.getElementById("event-count");
@@ -29,6 +28,10 @@ function resetConsole() { consoleEl.textContent = ""; eventCount = 0; eventCount
 function setMeta(message, isError = false) { requestMetaEl.textContent = message; requestMetaEl.className = isError ? "meta error" : "meta"; }
 function updateSessionVisibility() { sessionInput.disabled = modeSelect.value !== "resume"; }
 function modelsForProvider(provider) { return musicians.filter((m) => m.provider === provider).map((m) => m.model); }
+function websocketUrl(scoreId) {
+  const scheme = window.location.protocol === "https:" ? "wss" : "ws";
+  return `${scheme}://${window.location.host}/v1/chat/${scoreId}/ws`;
+}
 
 function renderModelOptions() {
   const current = providerSelect.value;
@@ -66,46 +69,42 @@ function renderMusicians() {
   }
 }
 
-function parseSseChunk(buffer) {
-  const packets = buffer.split("\n\n");
-  return { packets: packets.slice(0, -1), remainder: packets[packets.length - 1] || "" };
+async function fetchScore(scoreId) {
+  const response = await fetch(`/v1/chat/${scoreId}`);
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.detail || JSON.stringify(body));
+  return body;
 }
 
-async function sendStreaming(payload) {
-  const response = await fetch("/v1/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-  if (!response.ok || !response.body) throw new Error((await response.text()) || `HTTP ${response.status}`);
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const parsed = parseSseChunk(buffer);
-    buffer = parsed.remainder;
-    for (const packet of parsed.packets) {
-      const lines = packet.split("\n");
-      const eventLine = lines.find((line) => line.startsWith("event: "));
-      const dataLine = lines.find((line) => line.startsWith("data: "));
-      if (!eventLine || !dataLine) continue;
-      const payloadObj = JSON.parse(dataLine.slice(6));
-      eventCount += 1;
-      eventCountEl.textContent = String(eventCount);
-      writeConsole(`[${eventLine.slice(7).trim()}] ${JSON.stringify(payloadObj, null, 2)}`);
-      if (payloadObj.provider_session_ref) {
-        sessionRefEl.textContent = payloadObj.provider_session_ref;
-        sessionInput.value = payloadObj.provider_session_ref;
-      }
+async function waitForTerminalScore(scoreId, onSnapshot) {
+  for (;;) {
+    const snapshot = await fetchScore(scoreId);
+    onSnapshot(snapshot);
+    if (["completed", "failed", "stopped"].includes(snapshot.status)) {
+      return snapshot;
     }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 }
 
-async function sendJson(payload) {
-  const response = await fetch("/v1/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-  const body = await response.json();
-  if (!response.ok) throw new Error(body.detail || JSON.stringify(body));
-  writeConsole(JSON.stringify(body, null, 2));
-  if (body.provider_session_ref) { sessionRefEl.textContent = body.provider_session_ref; sessionInput.value = body.provider_session_ref; }
+function attachScoreSocket(scoreId, onMessage) {
+  return new Promise((resolve) => {
+    const socket = new WebSocket(websocketUrl(scoreId));
+    socket.addEventListener("open", () => resolve(socket));
+    socket.addEventListener("message", (event) => {
+      try {
+        onMessage(JSON.parse(event.data));
+      } catch (_) {}
+    });
+    socket.addEventListener("error", () => resolve(socket));
+    socket.addEventListener("close", () => resolve(socket));
+  });
+}
+
+function applySessionRef(sessionRef) {
+  if (!sessionRef) return;
+  sessionRefEl.textContent = sessionRef;
+  sessionInput.value = sessionRef;
 }
 
 function buildVersionCard(v) {
@@ -135,7 +134,6 @@ async function updateProvider(provider) {
   const btn = card?.querySelector(".version-update-btn");
   if (!card || !btn) return;
 
-  // Replace button with progress bar.
   btn.replaceWith(Object.assign(document.createElement("div"), {
     className: "version-progress", innerHTML: '<div class="version-progress-bar"></div>',
   }));
@@ -150,7 +148,6 @@ async function updateProvider(provider) {
     const result = await response.json();
     if (!response.ok) throw new Error(result.detail || "Update failed");
 
-    // Snap progress to 100% briefly before replacing the card.
     const bar = card.querySelector(".version-progress-bar");
     if (bar) { bar.style.animation = "none"; bar.style.width = "100%"; }
     statusEl.textContent = result.update_skipped_reason ? result.update_skipped_reason : "Done!";
@@ -158,11 +155,9 @@ async function updateProvider(provider) {
 
     const newCard = buildVersionCard(result);
     card.replaceWith(newCard);
-    if (result.update_skipped_reason) {
-      versionMetaEl.textContent = `${provider}: ${result.update_skipped_reason}`;
-    } else {
-      versionMetaEl.textContent = `${provider} updated to ${result.current_version || "latest"}.`;
-    }
+    versionMetaEl.textContent = result.update_skipped_reason
+      ? `${provider}: ${result.update_skipped_reason}`
+      : `${provider} updated to ${result.current_version || "latest"}.`;
   } catch (error) {
     const bar = card.querySelector(".version-progress-bar");
     if (bar) { bar.style.animation = "none"; bar.style.width = "100%"; bar.style.background = "var(--error)"; }
@@ -182,10 +177,9 @@ export async function refreshState() {
   bashVersionEl.textContent = health.bash_version || "not detected";
   musicianCountEl.textContent = String(health.musician_count);
 
-  // Set workspace_path default to config file's parent directory (project root).
   if (!workspaceInput.value && health.config_path) {
     const parts = health.config_path.replace(/\\/g, "/").split("/");
-    parts.pop(); // remove config filename
+    parts.pop();
     workspaceInput.value = parts.join("/") || "/";
   }
 
@@ -208,7 +202,7 @@ export async function refreshState() {
     const versions = await fetchVersions();
     renderVersions(versions);
     versionMetaEl.textContent = versions.length && versions[0].last_checked ? `Last checked: ${new Date(versions[0].last_checked).toLocaleString()}` : "Checked.";
-  } catch (_) { }
+  } catch (_) {}
 }
 
 export function getMusicians() { return musicians; }
@@ -218,13 +212,74 @@ form.addEventListener("submit", async (event) => {
   event.preventDefault();
   resetConsole();
   sendButton.disabled = true;
-  setMeta("Sending request...");
-  const payload = { provider: providerSelect.value, model: modelSelect.value, workspace_path: workspaceInput.value.trim(), mode: modeSelect.value, prompt: promptInput.value, stream: streamInput.checked };
+  setMeta("Submitting score...");
+
+  const payload = {
+    provider: providerSelect.value,
+    model: modelSelect.value,
+    workspace_path: workspaceInput.value.trim(),
+    mode: modeSelect.value,
+    prompt: promptInput.value,
+  };
   if (payload.mode === "resume") payload.provider_session_ref = sessionInput.value.trim();
+
   try {
     sessionStorage.setItem("workspace_path", payload.workspace_path);
-    if (payload.stream) await sendStreaming(payload); else await sendJson(payload);
-    setMeta("Request completed.");
+    const response = await fetch("/v1/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const accepted = await response.json();
+    if (!response.ok) throw new Error(accepted.detail || JSON.stringify(accepted));
+
+    writeConsole(`[accepted] score=${accepted.score_id} status=${accepted.status}`);
+    let seenText = "";
+
+    const socket = await attachScoreSocket(accepted.score_id, (message) => {
+      const type = message.type || "unknown";
+      eventCount += 1;
+      eventCountEl.textContent = String(eventCount);
+      if (type === "score_snapshot" && message.score) {
+        applySessionRef(message.score.provider_session_ref);
+        if (!seenText && message.score.accumulated_text) {
+          seenText = message.score.accumulated_text;
+          writeConsole(message.score.accumulated_text);
+        }
+        return;
+      }
+      if (type === "provider_session") {
+        applySessionRef(message.provider_session_ref);
+        return;
+      }
+      if (type === "output_delta" && message.text) {
+        seenText = seenText ? `${seenText}\n${message.text}` : message.text;
+        writeConsole(message.text);
+        return;
+      }
+      writeConsole(`[${type}] ${JSON.stringify(message, null, 2)}`);
+    });
+
+    const terminal = await waitForTerminalScore(accepted.score_id, (snapshot) => {
+      applySessionRef(snapshot.provider_session_ref);
+      if (snapshot.accumulated_text && snapshot.accumulated_text.startsWith(seenText)) {
+        const suffix = snapshot.accumulated_text.slice(seenText.length).replace(/^\n+/, "");
+        if (suffix) {
+          seenText = snapshot.accumulated_text;
+          writeConsole(suffix);
+        }
+      } else if (!seenText && snapshot.accumulated_text) {
+        seenText = snapshot.accumulated_text;
+        writeConsole(snapshot.accumulated_text);
+      }
+    });
+
+    if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+      socket.close();
+    }
+
+    writeConsole(`[terminal] ${JSON.stringify(terminal, null, 2)}`);
+    setMeta(`Score ${terminal.status}.`);
     await refreshState();
   } catch (error) {
     writeConsole(`[failed] ${error.message}`);

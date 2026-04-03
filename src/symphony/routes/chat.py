@@ -1,50 +1,27 @@
 from __future__ import annotations
 
-import json
-from collections.abc import AsyncIterator
+from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
 
-from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import JSONResponse, StreamingResponse
-
-from ..models import ChatRequest, ChatResponse, ErrorDetail, StopResponse
+from ..models import ChatAcceptedResponse, ChatRequest, ErrorDetail, ScoreSnapshot, StopResponse
 from ..models.enums import ScoreStatus
 from ..orchestra import ScoreHandle
 from ._deps import get_orchestra, get_ready_orchestra
 
 router = APIRouter()
 
-_TERMINAL_EVENTS = {"completed", "failed", "stopped"}
-
-
-async def _stream_handle_events(handle: ScoreHandle) -> AsyncIterator[str]:
-    _SCORE_TERMINAL = {ScoreStatus.COMPLETED, ScoreStatus.FAILED, ScoreStatus.STOPPED}
-    try:
-        while True:
-            event = await handle.events.get()
-            payload = dict(event)
-            event_name = payload.pop("type")
-            yield f"event: {event_name}\ndata: {json.dumps(payload)}\n\n"
-            if event_name in _TERMINAL_EVENTS:
-                break
-    finally:
-        # When the SSE client disconnects (e.g. the desktop app aborts the pipeline),
-        # the async generator is closed.  If the score is still running, set the
-        # cancelled flag so the musician's cancel watcher kills the CLI.
-        if handle.status not in _SCORE_TERMINAL:
-            handle.cancelled.set()
-
 
 @router.post(
     "/v1/chat",
     tags=["Chat"],
-    summary="Send a prompt to an AI instrument",
-    response_model=ChatResponse,
+    summary="Submit a prompt to an AI instrument",
+    response_model=ChatAcceptedResponse,
+    status_code=202,
     responses={
         404: {"description": "No musician configured for instrument/model.", "model": ErrorDetail},
         500: {"description": "Instrument CLI crashed or returned an unrecoverable error.", "model": ErrorDetail},
     },
 )
-async def chat(request: Request, body: ChatRequest) -> StreamingResponse | JSONResponse:
+async def chat(request: Request, body: ChatRequest) -> ChatAcceptedResponse:
     orchestra = await get_ready_orchestra(request)
 
     if not orchestra.available_providers.get(body.provider, False):
@@ -63,21 +40,63 @@ async def chat(request: Request, body: ChatRequest) -> StreamingResponse | JSONR
             detail=f"No musician configured for instrument={body.provider.value} model={body.model}",
         )
 
-    handle = await musician.submit(body)
+    handle = ScoreHandle(provider=body.provider, model=body.model)
     orchestra.register_score(handle)
+    await musician.submit(body, handle)
+    return ChatAcceptedResponse(
+        score_id=handle.score_id,
+        status=handle.status,
+        provider=body.provider,
+        model=body.model,
+        created_at=handle.created_at,
+        started_at=handle.started_at,
+    )
 
-    if body.stream:
-        return StreamingResponse(
-            _stream_handle_events(handle),
-            media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
-        )
 
+@router.get(
+    "/v1/chat/{score_id}",
+    tags=["Chat"],
+    summary="Read the current authoritative score snapshot",
+    response_model=ScoreSnapshot,
+    responses={404: {"description": "Score ID not found.", "model": ErrorDetail}},
+)
+async def get_score(request: Request, score_id: str) -> ScoreSnapshot:
+    orchestra = get_orchestra(request)
+    snapshot = orchestra.get_score_snapshot(score_id)
+    if snapshot is None:
+        raise HTTPException(status_code=404, detail=f"Score '{score_id}' not found")
+    return snapshot
+
+
+@router.websocket("/v1/chat/{score_id}/ws")
+async def score_websocket(websocket: WebSocket, score_id: str) -> None:
+    await websocket.accept()
+    orchestra = websocket.app.state.orchestra
+    handle = orchestra.get_score(score_id)
+    if handle is None:
+        snapshot = orchestra.get_score_snapshot(score_id)
+        if snapshot is None:
+            await websocket.send_json({"type": "error", "detail": f"Score '{score_id}' not found"})
+            await websocket.close(code=1008, reason="Unknown score")
+            return
+        await websocket.send_json({"type": "score_snapshot", "score": snapshot.model_dump(mode="json")})
+        await websocket.close()
+        return
+
+    queue = handle.subscribe()
     try:
-        result = await handle.result_future
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-    return JSONResponse(content=result.model_dump())
+        snapshot = handle.snapshot()
+        await websocket.send_json({"type": "score_snapshot", "score": snapshot.model_dump(mode="json")})
+        if snapshot.status in {ScoreStatus.COMPLETED, ScoreStatus.FAILED, ScoreStatus.STOPPED}:
+            await websocket.close()
+            return
+        while True:
+            event = await queue.get()
+            await websocket.send_json(event)
+    except WebSocketDisconnect:
+        return
+    finally:
+        handle.unsubscribe(queue)
 
 
 @router.post(

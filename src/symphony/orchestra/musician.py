@@ -61,13 +61,17 @@ class Musician:
                 pass
         await self.shell.stop()
 
-    async def submit(self, request: ChatRequest) -> ScoreHandle:
+    async def submit(self, request: ChatRequest, handle: ScoreHandle | None = None) -> ScoreHandle:
         loop = asyncio.get_running_loop()
-        handle = ScoreHandle(
+        handle = handle or ScoreHandle(
             result_future=loop.create_future(),
             provider=request.provider,
             model=request.model,
         )
+        if handle.result_future is None:
+            handle.result_future = loop.create_future()
+        handle.provider = request.provider
+        handle.model = request.model
         await self.queue.put((request, handle))
         return handle
 

@@ -100,6 +100,27 @@ function updateCell(row, col, value, className = "") {
   cell.className = className;
 }
 
+async function waitForTerminalScore(scoreId) {
+  for (;;) {
+    const response = await fetch(`/v1/chat/${scoreId}`);
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.detail || `HTTP ${response.status}`);
+    if (["completed", "failed", "stopped"].includes(body.status)) return body;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+}
+
+async function submitAndWaitScore(payload) {
+  const submitResponse = await fetch("/v1/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const accepted = await submitResponse.json();
+  if (!submitResponse.ok) throw new Error(accepted.detail || `HTTP ${submitResponse.status}`);
+  return waitForTerminalScore(accepted.score_id);
+}
+
 async function generateScenario() {
   if (generateController) {
     generateController.abort();
@@ -196,20 +217,14 @@ export function renderTestLabModels() {
 async function testSingleModel(selected, workspace, story, qaPairs) {
   const row = getOrCreateRow(selected.provider, selected.model);
   try {
-    const newResp = await fetch("/v1/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        provider: selected.provider,
-        model: selected.model,
-        workspace_path: workspace,
-        mode: "new",
-        prompt: story,
-        stream: false,
-      }),
+    const newData = await submitAndWaitScore({
+      provider: selected.provider,
+      model: selected.model,
+      workspace_path: workspace,
+      mode: "new",
+      prompt: story,
     });
-    const newData = await newResp.json();
-    const newOk = newResp.ok && newData.exit_code === 0;
+    const newOk = newData.status === "completed" && newData.exit_code === 0;
     updateCell(row, "new", newOk ? "OK" : "FAIL", newOk ? "ok" : "error");
     let passed = 0;
     if (newOk && newData.provider_session_ref) {
@@ -217,23 +232,17 @@ async function testSingleModel(selected, workspace, story, qaPairs) {
       resumeCell.innerHTML = `<div class="resume-progress"><span>${SPINNER_HTML} 0/${qaPairs.length}</span><div class="resume-bar-track"><div class="resume-bar-fill" style="width:0%"></div></div></div>`;
       let completed = 0;
       for (const qa of qaPairs) {
-        const resumeResp = await fetch("/v1/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            provider: selected.provider,
-            model: selected.model,
-            workspace_path: workspace,
-            mode: "resume",
-            provider_session_ref: newData.provider_session_ref,
-            prompt: qa.question,
-            stream: false,
-          }),
+        const resumeData = await submitAndWaitScore({
+          provider: selected.provider,
+          model: selected.model,
+          workspace_path: workspace,
+          mode: "resume",
+          provider_session_ref: newData.provider_session_ref,
+          prompt: qa.question,
         });
-        const resumeData = await resumeResp.json();
         const text = (resumeData.final_text || "").toLowerCase();
         if (
-          resumeResp.ok
+          resumeData.status === "completed"
           && resumeData.exit_code === 0
           && qa.keywords.every((kw) => text.includes(kw.toLowerCase()))
         ) {

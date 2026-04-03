@@ -4,18 +4,20 @@ import asyncio
 import logging
 
 from ..config import AppConfig, InstrumentConfig
-from ..models import ModelDetail, ProviderCapability, InstrumentName, MusicianInfo
+from ..models import ModelDetail, ProviderCapability, InstrumentName, MusicianInfo, ScoreSnapshot
 from ..models.enums import ScoreStatus
 from ..providers.base import set_bash_path
 from ..providers.registry import build_instrument_registry
+from ..score_store import ScoreStore
 from ..shells import ScoreCancelledError, detect_bash_path
 from .musician import Musician
-from .score import ScoreHandle, stopped_event
+from .score import ScoreHandle, now_rfc3339, stopped_event
 
 logger = logging.getLogger("symphony.orchestra")
 
 _MAX_COMPLETED_SCORES = 1000
 _BASH_VERSION_TIMEOUT_SECONDS = 1.0
+_RESTART_INTERRUPTION_ERROR = "Symphony restarted before the score finished"
 
 
 class Orchestra:
@@ -30,6 +32,7 @@ class Orchestra:
         self.available_providers: dict[InstrumentName, bool] = {}
         self._scores: dict[str, ScoreHandle] = {}
         self._ready = asyncio.Event()
+        self.score_store = ScoreStore(max_terminal_scores=_MAX_COMPLETED_SCORES)
 
     def _all_musicians(self) -> list[Musician]:
         """Return a flat list of every musician across all pools."""
@@ -157,11 +160,22 @@ class Orchestra:
 
     def register_score(self, handle: ScoreHandle) -> None:
         """Store a score handle so it can be looked up for cancellation."""
+        handle.set_persist_callback(self.persist_snapshot)
         self._scores[handle.score_id] = handle
+        self.score_store.save(handle.snapshot())
         self._evict_old_scores()
 
     def get_score(self, score_id: str) -> ScoreHandle | None:
         return self._scores.get(score_id)
+
+    def get_score_snapshot(self, score_id: str) -> ScoreSnapshot | None:
+        handle = self._scores.get(score_id)
+        if handle is not None:
+            return handle.snapshot()
+        return self.score_store.load(score_id)
+
+    async def persist_snapshot(self, snapshot: ScoreSnapshot) -> None:
+        await asyncio.to_thread(self.score_store.save, snapshot)
 
     async def stop_score(self, score_id: str) -> ScoreHandle | None:
         """Cancel a running or queued score. Returns the handle, or None if not found."""
@@ -187,17 +201,33 @@ class Orchestra:
                 except Exception as exc:
                     logger.warning("Failed to interrupt score %s cleanly: %s", score_id, exc)
             handle.status = ScoreStatus.STOPPED
-            handle.publish_nowait(stopped_event(handle))
+            await handle.publish(stopped_event(handle))
 
         elif handle.status == ScoreStatus.QUEUED:
             handle.status = ScoreStatus.STOPPED
-            handle.publish_nowait(stopped_event(handle))
+            await handle.publish(stopped_event(handle))
             if handle.result_future and not handle.result_future.done():
                 handle.result_future.set_exception(
                     ScoreCancelledError(f"Score {score_id} cancelled while queued")
                 )
 
         return handle
+
+    def restore_scores(self) -> None:
+        """Load persisted score snapshots into memory and recover interrupted runs."""
+        for snapshot in self.score_store.load_all():
+            if snapshot.status in {ScoreStatus.QUEUED, ScoreStatus.RUNNING}:
+                snapshot.status = ScoreStatus.FAILED
+                snapshot.error = _RESTART_INTERRUPTION_ERROR
+                snapshot.finished_at = now_rfc3339()
+                snapshot.updated_at = snapshot.finished_at
+                self.score_store.save(snapshot)
+
+            handle = ScoreHandle.from_snapshot(snapshot)
+            handle.set_persist_callback(self.persist_snapshot)
+            self._scores[handle.score_id] = handle
+
+        self._evict_old_scores()
 
     def _find_musician_for_score(self, handle: ScoreHandle) -> Musician | None:
         """Find the musician currently executing the given score."""
@@ -231,7 +261,6 @@ class Orchestra:
                     available=self.available_providers.get(instrument, False),
                     models=instrument_config.models,
                     supports_resume=adapter.supports_resume,
-                    supports_streaming=adapter.supports_streaming,
                     supports_model_override=adapter.supports_model_override,
                     session_reference_format=adapter.session_reference_format,
                 )
@@ -260,7 +289,6 @@ class Orchestra:
                         "workspace_path": "/path/to/your/project",
                         "mode": "new",
                         "prompt": "Your prompt here",
-                        "stream": True,
                     },
                 )
             )
