@@ -27,6 +27,7 @@ class ClaudeAdapter(ProviderAdapter):
             prompt,
         ]
         self._apply_model_override(argv, model)
+        self._apply_max_turns(argv, provider_options)
         argv.extend(self._extra_args(provider_options))
         return CommandSpec(argv=argv, preset_session_ref=session_ref)
 
@@ -41,15 +42,22 @@ class ClaudeAdapter(ProviderAdapter):
             "--no-chrome",
             "--effort",
             "high",
-            "--max-turns",
-            "25",
             "--resume",
             session_ref,
             prompt,
         ]
         self._apply_model_override(argv, model)
+        self._apply_max_turns(argv, provider_options)
         argv.extend(self._extra_args(provider_options))
         return CommandSpec(argv=argv, preset_session_ref=session_ref)
+
+    def _apply_max_turns(self, argv: list[str], provider_options: dict) -> None:
+        raw = provider_options.get("max_turns")
+        if raw is None:
+            return
+        if isinstance(raw, bool) or not isinstance(raw, int) or raw <= 0:
+            raise ValueError("provider_options.max_turns must be a positive integer")
+        argv.extend(["--max-turns", str(raw)])
 
     def parse_output_line(self, line: str, state: ParseState) -> list[dict[str, object]]:
         obj = self._parse_json_or_warn(line, state)

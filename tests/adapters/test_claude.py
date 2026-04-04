@@ -46,6 +46,21 @@ def test_claude_resume_command_uses_resume_flag():
     assert "--session-id" not in command.argv
 
 
+def test_claude_resume_command_accepts_max_turns_override():
+    adapter = ClaudeAdapter()
+    command = adapter.build_command(
+        executable="claude",
+        mode=ChatMode.RESUME,
+        prompt="hello",
+        model="default",
+        session_ref="abc-123",
+        provider_options={"max_turns": 200},
+    )
+    assert "--max-turns" in command.argv
+    max_turns_index = command.argv.index("--max-turns")
+    assert command.argv[max_turns_index + 1] == "200"
+
+
 def test_claude_parse_extracts_session_id():
     adapter = ClaudeAdapter()
     state = ParseState()

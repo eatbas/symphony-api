@@ -225,34 +225,55 @@ class BashSession:
             f"printf '%s\\n' '{begin}'\n"
             f"__symphony_exit=0\n"
             f"{script}\n"
-            f"printf '%s:%s\\n' '{end}' \"$__symphony_exit\"\n"
+            f"printf '\\n%s:%s\\n' '{end}' \"$__symphony_exit\"\n"
         )
 
     async def _reader_loop(self) -> None:
         assert self.process and self.process.stdout
-        while True:
-            raw_line = await self.process.stdout.readline()
-            if not raw_line:
-                current = self._current_run
-                if current and not current.future.done():
-                    current.future.set_exception(ShellSessionError("bash musician terminated unexpectedly"))
-                break
+        buffer = bytearray()
+        try:
+            while True:
+                chunk = await self.process.stdout.read(4096)
+                if not chunk:
+                    if buffer:
+                        await self._handle_output_line(bytes(buffer))
+                    current = self._current_run
+                    if current and not current.future.done():
+                        current.future.set_exception(ShellSessionError("bash musician terminated unexpectedly"))
+                    break
 
-            line = raw_line.decode("utf-8", errors="replace").rstrip("\r\n")
+                buffer.extend(chunk)
+                while True:
+                    newline_index = buffer.find(b"\n")
+                    if newline_index < 0:
+                        break
+
+                    raw_line = bytes(buffer[: newline_index + 1])
+                    del buffer[: newline_index + 1]
+                    await self._handle_output_line(raw_line)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
             current = self._current_run
-            if current is None:
-                continue
+            if current and not current.future.done():
+                current.future.set_exception(ShellSessionError(f"bash musician output reader failed: {exc}"))
 
-            begin_marker = f"__SYMPHONY_BEGIN__{current.token}"
-            end_prefix = f"__SYMPHONY_END__{current.token}:"
-            if line == begin_marker:
-                current.started = True
-                continue
-            if line.startswith(end_prefix):
-                exit_code = int(line.split(":", 1)[1])
-                if not current.future.done():
-                    current.future.set_result(exit_code)
-                current.started = False
-                continue
-            if current.started:
-                await current.on_line(line)
+    async def _handle_output_line(self, raw_line: bytes) -> None:
+        line = raw_line.decode("utf-8", errors="replace").rstrip("\r\n")
+        current = self._current_run
+        if current is None:
+            return
+
+        begin_marker = f"__SYMPHONY_BEGIN__{current.token}"
+        end_prefix = f"__SYMPHONY_END__{current.token}:"
+        if line == begin_marker:
+            current.started = True
+            return
+        if line.startswith(end_prefix):
+            exit_code = int(line.split(":", 1)[1])
+            if not current.future.done():
+                current.future.set_result(exit_code)
+            current.started = False
+            return
+        if current.started:
+            await current.on_line(line)

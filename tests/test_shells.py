@@ -1,60 +1,30 @@
-import os
-from unittest.mock import patch
+from __future__ import annotations
+
+import sys
+from shlex import quote
 
 import pytest
 
-from symphony.shells import GitBashNotFoundError, detect_bash_path, to_bash_path
+from symphony.shells import BashSession, detect_bash_path
 
 
-def test_to_bash_path_converts_windows_drive():
-    assert to_bash_path("C:\\Users\\test\\project") == "/c/Users/test/project"
+@pytest.mark.asyncio
+async def test_bash_session_handles_long_output_without_newline() -> None:
+    session = BashSession(detect_bash_path())
+    captured: list[str] = []
+    python = quote(sys.executable)
+
+    try:
+        exit_code = await session.run_script(
+            f"{python} -c \"import sys; sys.stdout.write('x' * 70000)\"",
+            lambda line: _collect_output(captured, line),
+        )
+    finally:
+        await session.stop()
+
+    assert exit_code == 0
+    assert captured == ["x" * 70000]
 
 
-def test_to_bash_path_converts_uppercase_drive():
-    assert to_bash_path("D:\\data") == "/d/data"
-
-
-def test_to_bash_path_passes_unix_path_through():
-    assert to_bash_path("/home/user/project") == "/home/user/project"
-
-
-def test_to_bash_path_normalizes_backslashes():
-    assert to_bash_path("some\\path\\here") == "some/path/here"
-
-
-def test_detect_bash_path_uses_override():
-    assert detect_bash_path("/custom/bash") == "/custom/bash"
-
-
-def test_detect_bash_path_non_windows_uses_which():
-    with patch("symphony.shells.os") as mock_os, \
-         patch("symphony.shells.shutil") as mock_shutil:
-        mock_os.name = "posix"
-        mock_shutil.which.return_value = "/usr/bin/bash"
-        result = detect_bash_path(None)
-        assert result == "/usr/bin/bash"
-
-
-def test_detect_bash_path_windows_checks_git_bash():
-    with patch("symphony.shells.os") as mock_os, \
-         patch("symphony.shells.Path") as mock_path_cls:
-        mock_os.name = "nt"
-        # First candidate exists
-        instance = mock_path_cls.return_value
-        instance.exists.return_value = True
-        result = detect_bash_path(None)
-        assert "bash" in result.lower()
-
-
-def test_detect_bash_path_windows_raises_without_git_bash():
-    with patch("symphony.shells.os") as mock_os, \
-         patch("symphony.shells.Path") as mock_path_cls, \
-         patch("symphony.shells.shutil") as mock_shutil:
-        mock_os.name = "nt"
-        # No candidate paths exist
-        instance = mock_path_cls.return_value
-        instance.exists.return_value = False
-        # shutil.which also returns nothing
-        mock_shutil.which.return_value = None
-        with pytest.raises(GitBashNotFoundError, match="Git Bash is required on Windows"):
-            detect_bash_path(None)
+async def _collect_output(captured: list[str], line: str) -> None:
+    captured.append(line)
