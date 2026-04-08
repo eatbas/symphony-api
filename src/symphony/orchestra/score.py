@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ..models import ChatResponse, ScoreSnapshot
-from ..models.enums import ScoreStatus, InstrumentName
+from ..models.enums import TERMINAL_STATUSES, ScoreStatus, InstrumentName
 
 
 def _safe_error_message(exc: BaseException) -> str:
@@ -60,6 +60,16 @@ class ScoreHandle:
     async def persist(self) -> None:
         if self._persist_callback is not None:
             await self._persist_callback(self.snapshot())
+
+    def resolve(self, result: ChatResponse) -> None:
+        """Resolve the result future if one is attached."""
+        if self.result_future and not self.result_future.done():
+            self.result_future.set_result(result)
+
+    def reject(self, exc: BaseException) -> None:
+        """Reject the result future if one is attached."""
+        if self.result_future and not self.result_future.done():
+            self.result_future.set_exception(exc)
 
     def apply_event(self, event: dict[str, Any]) -> None:
         event_type = event.get("type")
@@ -155,3 +165,12 @@ def stopped_event(handle: ScoreHandle) -> dict[str, Any]:
         "provider": handle.provider.value if handle.provider else None,
         "model": handle.model,
     }
+
+
+__all__ = [
+    "ScoreHandle",
+    "TERMINAL_STATUSES",
+    "now_rfc3339",
+    "stopped_event",
+    "_safe_error_message",
+]

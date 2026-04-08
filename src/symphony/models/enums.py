@@ -29,3 +29,10 @@ class ScoreStatus(StrEnum):
     COMPLETED = "completed"
     FAILED = "failed"
     STOPPED = "stopped"
+
+
+TERMINAL_STATUSES = {
+    ScoreStatus.COMPLETED,
+    ScoreStatus.FAILED,
+    ScoreStatus.STOPPED,
+}

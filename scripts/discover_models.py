@@ -25,8 +25,8 @@ _SRC = Path(__file__).resolve().parent.parent / "src"
 sys.path.insert(0, str(_SRC))
 
 from symphony.discovery.discoverer import (  # noqa: E402
-    _parse_models_from_toml,
-    _replace_models_in_toml,
+    parse_models_from_toml,
+    replace_models_in_toml,
 )
 from symphony.discovery.providers import DISCOVERERS  # noqa: E402
 from symphony.models import InstrumentName  # noqa: E402
@@ -56,7 +56,7 @@ def main() -> None:
         except ValueError:
             continue
 
-        current = _parse_models_from_toml(config_text, provider_name)
+        current = parse_models_from_toml(config_text, provider_name)
         discover_fn = DISCOVERERS.get(provider)
 
         if discover_fn is None:
@@ -78,7 +78,7 @@ def main() -> None:
                 print(f"    + {m}")
             for m in removed:
                 print(f"    - {m}")
-            updated_text = _replace_models_in_toml(updated_text, provider_name, discovered)
+            updated_text = replace_models_in_toml(updated_text, provider_name, discovered)
         else:
             print(f"  {provider_name}: up to date ({len(current)} models)")
 

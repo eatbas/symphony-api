@@ -51,6 +51,14 @@ def to_bash_path(value: str) -> str:
     return value.replace("\\", "/")
 
 
+def windows_subprocess_kwargs() -> dict[str, object]:
+    """Return subprocess kwargs that hide console windows on Windows."""
+    kwargs: dict[str, object] = {}
+    if os.name == "nt":
+        kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW  # type: ignore[attr-defined]
+    return kwargs
+
+
 def detect_bash_path(override: str | None = None) -> str:
     """Resolve the bash executable path.
 
@@ -95,11 +103,9 @@ class BashSession:
     async def start(self) -> None:
         if self.process and self.process.returncode is None:
             return
-        kwargs: dict = {}
+        kwargs = windows_subprocess_kwargs()
         env = {**os.environ, "PYTHONUTF8": "1"}
-        if os.name == "nt":
-            kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
-        else:
+        if os.name != "nt":
             kwargs["start_new_session"] = True
         self.process = await asyncio.create_subprocess_exec(
             self.shell_path,
@@ -170,8 +176,7 @@ class BashSession:
             "stdout": asyncio.subprocess.DEVNULL,
             "stderr": asyncio.subprocess.DEVNULL,
         }
-        if os.name == "nt":
-            kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+        kwargs.update(windows_subprocess_kwargs())
         proc = await asyncio.create_subprocess_exec(
             "taskkill", "/T", "/F", "/PID", str(pid),
             **kwargs,

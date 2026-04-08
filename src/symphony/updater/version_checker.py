@@ -11,6 +11,7 @@ import httpx
 
 from ..models import InstrumentName
 from ..orchestra import Musician, Orchestra
+from ..shells import windows_subprocess_kwargs
 from .registry import CLIPackageInfo, _parse_version
 
 logger = logging.getLogger("symphony.updater")
@@ -30,9 +31,7 @@ def set_bash_path(path: str) -> None:
 
 def _run_cmd_sync(*args: str, timeout: int = _CMD_TIMEOUT) -> tuple[int, str]:
     """Blocking subprocess helper — always routes through Git Bash on Windows."""
-    kwargs: dict[str, object] = {}
-    if os.name == "nt":
-        kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+    kwargs = windows_subprocess_kwargs()
 
     # On Windows, wrap the command in a Git Bash invocation so we never
     # fall back to cmd.exe / PowerShell.

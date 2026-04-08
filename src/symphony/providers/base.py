@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from ..models import ChatMode, InstrumentName
-from ..shells import to_bash_path
+from ..shells import to_bash_path, windows_subprocess_kwargs
 
 
 _VERSION_PATTERN = re.compile(r"\d+\.\d+")
@@ -56,15 +56,12 @@ def _check_via_bash(bash: str, executable: str) -> bool:
     """Run ``<exe> --version`` inside Git Bash and verify the output."""
     script = f'command -v {shlex.quote(executable)} >/dev/null 2>&1 && {shlex.quote(executable)} --version 2>&1'
     try:
-        kwargs: dict[str, object] = {}
-        if os.name == "nt":
-            kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW  # type: ignore[attr-defined]
         result = subprocess.run(
             [bash, "-c", script],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             timeout=10,
-            **kwargs,
+            **windows_subprocess_kwargs(),
         )
         if result.returncode != 0:
             return False

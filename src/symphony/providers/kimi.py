@@ -18,21 +18,38 @@ class KimiAdapter(ProviderAdapter):
 
     def build_new_command(self, *, executable: str, prompt: str, model: str, provider_options: dict) -> CommandSpec:
         session_ref = self.new_session_ref()
-        argv = [
-            executable,
-            "--yolo",
-            "--thinking",
-            "--session",
-            session_ref,
-            *self._AUTOMATION_ARGS,
-            "--prompt",
-            prompt,
-        ]
-        self._apply_model_override(argv, model)
-        argv.extend(self._extra_args(provider_options))
-        return CommandSpec(argv=argv, preset_session_ref=session_ref)
+        return CommandSpec(
+            argv=self._build_argv(
+                executable=executable,
+                prompt=prompt,
+                model=model,
+                session_ref=session_ref,
+                provider_options=provider_options,
+            ),
+            preset_session_ref=session_ref,
+        )
 
     def build_resume_command(self, *, executable: str, prompt: str, model: str, session_ref: str, provider_options: dict) -> CommandSpec:
+        return CommandSpec(
+            argv=self._build_argv(
+                executable=executable,
+                prompt=prompt,
+                model=model,
+                session_ref=session_ref,
+                provider_options=provider_options,
+            ),
+            preset_session_ref=session_ref,
+        )
+
+    def _build_argv(
+        self,
+        *,
+        executable: str,
+        prompt: str,
+        model: str,
+        session_ref: str | None,
+        provider_options: dict,
+    ) -> list[str]:
         argv = [
             executable,
             "--yolo",
@@ -45,7 +62,7 @@ class KimiAdapter(ProviderAdapter):
         ]
         self._apply_model_override(argv, model)
         argv.extend(self._extra_args(provider_options))
-        return CommandSpec(argv=argv, preset_session_ref=session_ref)
+        return argv
 
     def make_shell_script(self, workspace_path: str, command: CommandSpec) -> str:
         workspace = shlex.quote(to_bash_path(workspace_path))

@@ -14,6 +14,7 @@ import logging
 import os
 import re
 from pathlib import Path
+from typing import Iterable
 
 from .providers import DISCOVERERS
 
@@ -25,7 +26,7 @@ logger = logging.getLogger("symphony.discovery")
 # ---------------------------------------------------------------------------
 
 
-def _parse_models_from_toml(text: str, provider: str) -> list[str]:
+def parse_models_from_toml(text: str, provider: str) -> list[str]:
     """Extract the models array for *provider* from raw TOML text."""
     pattern = rf'\[providers\.{re.escape(provider)}\].*?models\s*=\s*\[(.*?)\]'
     match = re.search(pattern, text, re.DOTALL)
@@ -50,7 +51,12 @@ def _format_models_toml(models: list[str]) -> str:
     return "\n".join(lines)
 
 
-def _replace_models_in_toml(
+def parse_config_models(text: str, providers: Iterable[str]) -> dict[str, list[str]]:
+    """Extract model arrays for each provider listed in *providers*."""
+    return {provider: parse_models_from_toml(text, provider) for provider in providers}
+
+
+def replace_models_in_toml(
     text: str, provider: str, new_models: list[str],
 ) -> str:
     """Replace the models array for *provider* in raw TOML text."""
@@ -103,7 +109,7 @@ def run_startup_discovery(config_path: Path) -> bool:
             )
             continue
 
-        current = _parse_models_from_toml(updated_text, provider_name)
+        current = parse_models_from_toml(updated_text, provider_name)
         if set(discovered) != set(current):
             added = set(discovered) - set(current)
             removed = set(current) - set(discovered)
@@ -113,7 +119,7 @@ def run_startup_discovery(config_path: Path) -> bool:
                 list(added) if added else "none",
                 list(removed) if removed else "none",
             )
-            updated_text = _replace_models_in_toml(
+            updated_text = replace_models_in_toml(
                 updated_text, provider_name, discovered,
             )
             changed = True
@@ -156,7 +162,7 @@ def discover_provider(provider: InstrumentName, config_path: Path) -> bool:
         return False
 
     text = config_path.read_text(encoding="utf-8")
-    current = _parse_models_from_toml(text, provider.value)
+    current = parse_models_from_toml(text, provider.value)
 
     if set(discovered) == set(current):
         logger.debug("Models for %s unchanged after update", provider.value)
@@ -171,6 +177,6 @@ def discover_provider(provider: InstrumentName, config_path: Path) -> bool:
         sorted(removed) if removed else "none",
     )
 
-    updated_text = _replace_models_in_toml(text, provider.value, discovered)
+    updated_text = replace_models_in_toml(text, provider.value, discovered)
     config_path.write_text(updated_text, encoding="utf-8")
     return True

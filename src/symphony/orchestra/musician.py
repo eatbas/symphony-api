@@ -99,6 +99,10 @@ class Musician:
             last_error=self.last_error,
         )
 
+    @property
+    def is_idle(self) -> bool:
+        return self.ready and not self.busy and self.queue.qsize() == 0
+
     async def _run(self) -> None:
         while True:
             request, handle = await self.queue.get()
@@ -115,10 +119,7 @@ class Musician:
                             "model": self.model,
                         }
                     )
-                    if handle.result_future and not handle.result_future.done():
-                        handle.result_future.set_exception(
-                            ScoreCancelledError(f"Score {handle.score_id} cancelled while queued")
-                        )
+                    handle.reject(ScoreCancelledError(f"Score {handle.score_id} cancelled while queued"))
                     continue
 
                 handle.status = ScoreStatus.RUNNING
@@ -130,14 +131,10 @@ class Musician:
                     self.last_error = None
                 response = await self._execute_request(request, handle)
                 handle.status = ScoreStatus.COMPLETED
-                if handle.result_future and not handle.result_future.done():
-                    handle.result_future.set_result(response)
+                handle.resolve(response)
             except ScoreCancelledError:
                 handle.status = ScoreStatus.STOPPED
-                if handle.result_future and not handle.result_future.done():
-                    handle.result_future.set_exception(
-                        ScoreCancelledError(f"Score {handle.score_id} was stopped")
-                    )
+                handle.reject(ScoreCancelledError(f"Score {handle.score_id} was stopped"))
             except Exception as exc:
                 error_msg = _safe_error_message(exc)
                 self.last_error = error_msg
@@ -155,8 +152,7 @@ class Musician:
                         "model": self.model,
                     }
                 )
-                if handle.result_future and not handle.result_future.done():
-                    handle.result_future.set_exception(exc)
+                handle.reject(exc)
             finally:
                 self._current_handle = None
                 self.busy = False

@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
 
 from ..models import ChatAcceptedResponse, ChatRequest, ErrorDetail, ScoreSnapshot, StopResponse
-from ..models.enums import ScoreStatus
+from ..models.enums import TERMINAL_STATUSES
 from ..orchestra import ScoreHandle
 from ._deps import get_orchestra, get_ready_orchestra
 
@@ -87,7 +87,7 @@ async def score_websocket(websocket: WebSocket, score_id: str) -> None:
     try:
         snapshot = handle.snapshot()
         await websocket.send_json({"type": "score_snapshot", "score": snapshot.model_dump(mode="json")})
-        if snapshot.status in {ScoreStatus.COMPLETED, ScoreStatus.FAILED, ScoreStatus.STOPPED}:
+        if snapshot.status in TERMINAL_STATUSES:
             await websocket.close()
             return
         while True:

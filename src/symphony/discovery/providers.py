@@ -14,14 +14,13 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Any
 
 from ..models import InstrumentName
+from ..shells import windows_subprocess_kwargs
 
 logger = logging.getLogger("symphony.discovery")
 
@@ -42,15 +41,6 @@ def _read_json_file(path: Path) -> dict | None:
     except (json.JSONDecodeError, OSError) as exc:
         logger.debug("Failed to read %s: %s", path, exc)
         return None
-
-
-def _subprocess_kwargs() -> dict[str, Any]:
-    """Extra kwargs for subprocess.run on Windows (hide console window)."""
-    kwargs: dict[str, Any] = {}
-    if os.name == "nt":
-        kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW  # type: ignore[attr-defined]
-    return kwargs
-
 
 def _npm_package_dir(cli_name: str, package_name: str) -> Path | None:
     """Locate the npm ``node_modules/<package_name>`` dir for *cli_name*.
@@ -256,7 +246,7 @@ def _discover_opencode() -> list[str] | None:
             capture_output=True,
             text=True,
             timeout=_TIMEOUT,
-            **_subprocess_kwargs(),
+            **windows_subprocess_kwargs(),
         )
     except (subprocess.TimeoutExpired, OSError) as exc:
         logger.warning("opencode models failed: %s", exc)

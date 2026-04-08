@@ -1,5 +1,5 @@
 from .chat import ChatAcceptedResponse, ChatRequest, ChatResponse, ScoreSnapshot, StopResponse
-from .enums import ChatMode, ScoreStatus, InstrumentName
+from .enums import ChatMode, ScoreStatus, InstrumentName, TERMINAL_STATUSES
 from .provider import (
     CLIVersionStatus,
     ErrorDetail,
@@ -22,6 +22,7 @@ __all__ = [
     "InstrumentName",
     "ChatMode",
     "ScoreStatus",
+    "TERMINAL_STATUSES",
     "ChatRequest",
     "ChatResponse",
     "ChatAcceptedResponse",

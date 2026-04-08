@@ -5,7 +5,7 @@ import logging
 
 from ..config import AppConfig, InstrumentConfig
 from ..models import ModelDetail, ProviderCapability, InstrumentName, MusicianInfo, ScoreSnapshot
-from ..models.enums import ScoreStatus
+from ..models.enums import ScoreStatus, TERMINAL_STATUSES
 from ..providers.base import set_bash_path
 from ..providers.registry import build_instrument_registry
 from ..score_store import ScoreStore
@@ -121,7 +121,7 @@ class Orchestra:
 
         # Prefer an idle musician.
         for musician in pool:
-            if musician.ready and not musician.busy and musician.queue.qsize() == 0:
+            if musician.is_idle:
                 return musician
 
         # All busy -- scale up if under the concurrency limit.
@@ -183,18 +183,14 @@ class Orchestra:
         if handle is None:
             return None
 
-        terminal = {ScoreStatus.COMPLETED, ScoreStatus.FAILED, ScoreStatus.STOPPED}
-        if handle.status in terminal:
+        if handle.status in TERMINAL_STATUSES:
             return handle  # Idempotent
 
         handle.cancelled.set()
 
         if handle.status == ScoreStatus.RUNNING:
             musician = self._find_musician_for_score(handle)
-            if handle.result_future and not handle.result_future.done():
-                handle.result_future.set_exception(
-                    ScoreCancelledError(f"Score {score_id} was stopped")
-                )
+            handle.reject(ScoreCancelledError(f"Score {score_id} was stopped"))
             if musician is not None:
                 try:
                     await musician.shell.interrupt()
@@ -206,10 +202,7 @@ class Orchestra:
         elif handle.status == ScoreStatus.QUEUED:
             handle.status = ScoreStatus.STOPPED
             await handle.publish(stopped_event(handle))
-            if handle.result_future and not handle.result_future.done():
-                handle.result_future.set_exception(
-                    ScoreCancelledError(f"Score {score_id} cancelled while queued")
-                )
+            handle.reject(ScoreCancelledError(f"Score {score_id} cancelled while queued"))
 
         return handle
 
@@ -238,8 +231,7 @@ class Orchestra:
 
     def _evict_old_scores(self) -> None:
         """Remove oldest terminal scores when the registry exceeds the limit."""
-        terminal = {ScoreStatus.COMPLETED, ScoreStatus.FAILED, ScoreStatus.STOPPED}
-        terminal_ids = [sid for sid, h in self._scores.items() if h.status in terminal]
+        terminal_ids = [sid for sid, h in self._scores.items() if h.status in TERMINAL_STATUSES]
         excess = len(terminal_ids) - _MAX_COMPLETED_SCORES
         if excess > 0:
             for sid in terminal_ids[:excess]:
@@ -339,13 +331,13 @@ class Orchestra:
 
     def get_idle_musician(self, provider: InstrumentName) -> Musician | None:
         for musician in self.musicians_for_provider(provider):
-            if musician.ready and not musician.busy and musician.queue.qsize() == 0:
+            if musician.is_idle:
                 return musician
         return None
 
     async def get_bash_version(self) -> str | None:
         for musician in self._all_musicians():
-            if musician.ready and not musician.busy and musician.queue.qsize() == 0:
+            if musician.is_idle:
                 try:
                     _, output = await musician.run_quick_command(
                         "bash --version | head -1\n__symphony_exit=0",

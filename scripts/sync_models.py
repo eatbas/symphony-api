@@ -11,9 +11,13 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import re
 import sys
 from pathlib import Path
+
+_SRC = Path(__file__).resolve().parent.parent / "src"
+sys.path.insert(0, str(_SRC))
+
+from symphony.discovery.discoverer import parse_config_models as parse_discovery_config_models
 
 ROOT = Path(__file__).resolve().parent.parent.parent  # repo root
 SYMPHONY = ROOT / "symphony-api"
@@ -40,27 +44,6 @@ PROVIDER_CLI = {
 
 # Max models per provider in the test config (keeps tests fast).
 TEST_MAX_MODELS = 2
-
-
-# ------------------------------------------------------------------
-# config.toml parsing
-# ------------------------------------------------------------------
-
-def parse_config_models(text: str) -> dict[str, list[str]]:
-    """Extract models arrays for all providers from raw TOML text."""
-    result: dict[str, list[str]] = {}
-    for provider in PROVIDER_ORDER:
-        pattern = rf'\[providers\.{re.escape(provider)}\].*?models\s*=\s*\[(.*?)\]'
-        match = re.search(pattern, text, re.DOTALL)
-        if match:
-            raw = match.group(1)
-            models = [
-                m.strip().strip('"').strip("'")
-                for m in raw.split(",")
-                if m.strip().strip('"').strip("'")
-            ]
-            result[provider] = models
-    return result
 
 
 # ------------------------------------------------------------------
@@ -328,7 +311,7 @@ def main() -> None:
         sys.exit(1)
 
     config_text = CONFIG_PATH.read_text(encoding="utf-8")
-    models = parse_config_models(config_text)
+    models = parse_discovery_config_models(config_text, PROVIDER_ORDER)
 
     print(f"Config models ({sum(len(v) for v in models.values())} total):")
     for provider in PROVIDER_ORDER:

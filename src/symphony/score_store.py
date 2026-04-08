@@ -4,7 +4,7 @@ import threading
 from pathlib import Path
 
 from .models import ScoreSnapshot
-from .models.enums import ScoreStatus
+from .models.enums import TERMINAL_STATUSES
 
 _MAX_TERMINAL_SCORES = 1000
 
@@ -51,7 +51,6 @@ class ScoreStore:
             return snapshots
 
     def _prune_terminal_scores_locked(self) -> None:
-        terminal = {ScoreStatus.COMPLETED, ScoreStatus.FAILED, ScoreStatus.STOPPED}
         snapshots: list[tuple[Path, ScoreSnapshot]] = []
 
         for path in self.root.glob("*.json"):
@@ -59,7 +58,7 @@ class ScoreStore:
                 snapshot = ScoreSnapshot.model_validate_json(path.read_text(encoding="utf-8"))
             except Exception:
                 continue
-            if snapshot.status in terminal:
+            if snapshot.status in TERMINAL_STATUSES:
                 snapshots.append((path, snapshot))
 
         excess = len(snapshots) - self.max_terminal_scores
