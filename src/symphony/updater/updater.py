@@ -68,7 +68,9 @@ class CLIUpdater:
         logger.info("Updating %s (method=%s) ...", pkg_info.package, method)
 
         if method == "native":
-            cmd_str = f"{pkg_info.update_cmd} 2>&1\n__symphony_exit=$?"
+            # Pipe ``yes`` to auto-confirm interactive prompts (e.g.
+            # ``opencode upgrade``) that would otherwise hang the shell.
+            cmd_str = f"yes 2>/dev/null | {pkg_info.update_cmd} 2>&1\n__symphony_exit=$?"
         elif method == "npm":
             cmd_str = f"npm install -g {pkg_info.package}@latest 2>&1\n__symphony_exit=$?"
         elif method == "uv":

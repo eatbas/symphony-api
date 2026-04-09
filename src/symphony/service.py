@@ -82,11 +82,14 @@ def create_app() -> FastAPI:
     orchestra.restore_scores()
 
     async def _boot_orchestra() -> None:
-        """Boot musicians and run the first version check in the background.
+        """Boot musicians in the background, then start the updater.
 
         This keeps the lifespan yield instant so uvicorn starts accepting
         connections immediately — the sidecar health check passes in <1s
         instead of waiting 8-12s for all bash sessions to spawn.
+
+        The updater is started *after* the orchestra boots so its periodic
+        loop never races with musician shell initialisation.
         """
         await orchestra.start()
 
@@ -99,15 +102,13 @@ def create_app() -> FastAPI:
             len(orchestra._all_musicians()),
         )
 
-        try:
-            await asyncio.wait_for(updater.check_and_update_all(), timeout=30)
-        except Exception:
-            logger.warning("Initial CLI version check did not finish in time")
+        # Start the updater now that musicians are ready — its periodic
+        # loop runs the first version check immediately.
+        updater.start()
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
         boot_task = asyncio.create_task(_boot_orchestra())
-        updater.start()
         try:
             yield
         finally:
