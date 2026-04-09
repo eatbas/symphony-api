@@ -9,7 +9,13 @@ path = ""
 [providers.gemini]
 enabled = true
 executable = ""
-models = ["gemini-3-flash-preview", "gemini-2.5-pro", "gemini-3.1-pro-preview"]
+models = [
+  "gemini-2.5-flash",
+  "gemini-2.5-pro",
+  "gemini-3-flash-preview",
+  "gemini-3-pro-preview",
+  "gemini-3.1-pro-preview",
+]
 default_options = { extra_args = [] }
 # Desktop app manages timeouts via agent_timeout_ms; 0 = no sidecar timeout.
 cli_timeout = 0
@@ -20,10 +26,9 @@ idle_timeout = 0
 enabled = true
 executable = ""
 models = [
+  "gpt-5.3-codex",
   "gpt-5.4",
   "gpt-5.4-mini",
-  "gpt-5.3-codex",
-  "gpt-5.2",
 ]
 default_options = { extra_args = [] }
 cli_timeout = 0
@@ -32,7 +37,12 @@ idle_timeout = 0
 [providers.claude]
 enabled = true
 executable = ""
-models = ["opus", "sonnet", "haiku"]
+models = [
+  "haiku",
+  "opus",
+  "opus[1m]",
+  "sonnet",
+]
 default_options = { extra_args = [] }
 cli_timeout = 0
 idle_timeout = 0
@@ -49,19 +59,18 @@ idle_timeout = 0
 enabled = true
 executable = ""
 models = [
-  "claude-sonnet-4.6",
   "claude-haiku-4.5",
   "claude-opus-4.6",
-  "gpt-5.4",
-  "gpt-5.3-codex",
-  "gpt-5.4-mini",
-  "gpt-5.2",
-  "gpt-5-mini",
-  "gpt-4.1",
-  "gemini-3-pro",
-  "gemini-3-flash",
+  "claude-opus-4.6-1m",
+  "claude-opus-4.6-fast",
+  "claude-sonnet-4.6",
   "gemini-2.5-pro",
-  "grok-code-fast-1",
+  "gemini-3-pro-preview",
+  "gemini-3.1-pro-preview",
+  "gpt-5.3-codex",
+  "gpt-5.4",
+  "gpt-5.4-mini",
+  "gpt-5.4-nano",
 ]
 default_options = { extra_args = [] }
 cli_timeout = 0
@@ -71,18 +80,10 @@ idle_timeout = 0
 enabled = true
 executable = ""
 models = [
-  "glm-4.5",
-  "glm-4.5-air",
-  "glm-4.5-flash",
-  "glm-4.5v",
-  "glm-4.6",
-  "glm-4.6v",
-  "glm-4.7",
-  "glm-4.7-flash",
-  "glm-4.7-flashx",
   "glm-5",
   "glm-5-turbo",
   "glm-5.1",
+  "glm-5v-turbo",
 ]
 default_options = { extra_args = [] }
 cli_timeout = 0

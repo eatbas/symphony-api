@@ -21,6 +21,7 @@ from pathlib import Path
 
 from ..models import InstrumentName
 from ..shells import windows_subprocess_kwargs
+from .filters import filter_codex, filter_copilot, filter_opencode
 
 logger = logging.getLogger("symphony.discovery")
 
@@ -89,7 +90,7 @@ def _discover_claude() -> list[str] | None:
     if not pkg:
         return None
 
-    # The alias array appears as: mR9=["sonnet","opus","haiku"]
+    # The alias array appears as: mR9=["sonnet","opus","haiku","best","sonnet[1m]",...]
     # or similar minified variable assignment in the bundle.
     for js_file in pkg.rglob("*.js"):
         matches = _grep_file(
@@ -98,11 +99,18 @@ def _discover_claude() -> list[str] | None:
         )
         for m in matches:
             aliases = [a.strip('"') for a in m.split('","')]
-            # We want the short core list (sonnet/opus/haiku), not
-            # the extended list that includes [1m] variants.
+            # Validate by checking we found at least 2 base aliases.
             core = [a for a in aliases if re.fullmatch(r"[a-z]+", a)]
             if len(core) >= 2:
-                return sorted(core)
+                # Return only the core model tiers and 1M context
+                # variants.  Meta-aliases like "best" (auto-select)
+                # and "opusplan" (planning mode) add clutter.
+                allowed = {"haiku", "opus", "opus[1m]", "sonnet"}
+                all_aliases = [
+                    a for a in aliases
+                    if re.fullmatch(r"[a-z]+(?:\[\w+\])?", a)
+                ]
+                return sorted(a for a in all_aliases if a in allowed)
 
     return None
 
@@ -122,8 +130,8 @@ _GEMINI_MODEL_RE = re.compile(
 def _discover_gemini() -> list[str] | None:
     """Extract model names from the locally installed Gemini CLI.
 
-    Scans the ``@google/gemini-cli`` npm bundle for strings matching
-    ``gemini-<version>-<variant>`` and filters out internal/test entries.
+    Prefers the CLI's own ``VALID_GEMINI_MODELS`` set so we only surface
+    model IDs the installed Gemini CLI explicitly recognises.
     """
     pkg = _npm_package_dir("gemini", "@google/gemini-cli")
     if not pkg:
@@ -135,7 +143,18 @@ def _discover_gemini() -> list[str] | None:
 
     raw_models: set[str] = set()
     for js_file in bundle_dir.glob("*.js"):
-        for name in _grep_file(js_file, r'"(gemini-\d[a-z0-9._-]*)"'):
+        text = js_file.read_text(encoding="utf-8", errors="replace")
+        valid_match = re.search(r"VALID_GEMINI_MODELS\s*=.*?new Set\(\[(.*?)\]\)", text, re.DOTALL)
+        if valid_match:
+            models = set(re.findall(r'"(gemini-[a-z0-9._-]+)"', valid_match.group(1)))
+            for token in re.findall(r"\b[A-Z][A-Z0-9_]+\b", valid_match.group(1)):
+                token_match = re.search(rf"\b{token}\b\s*=\s*\"([^\"]+)\"", text)
+                if token_match:
+                    models.add(token_match.group(1))
+            models = {name for name in models if _GEMINI_MODEL_RE.match(name)}
+            if models:
+                return sorted(models)
+        for name in re.findall(r'"(gemini-\d[a-z0-9._-]*)"', text):
             if _GEMINI_MODEL_RE.match(name):
                 raw_models.add(name)
 
@@ -165,7 +184,7 @@ def _discover_codex() -> list[str] | None:
             if slug:
                 models.append(slug)
 
-    return models if models else None
+    return filter_codex(models) if models else None
 
 
 # ---------------------------------------------------------------------------
@@ -199,7 +218,7 @@ def _discover_copilot() -> list[str] | None:
     # Extract all quoted strings that look like model IDs.
     raw = _grep_file(app_js, r'"([a-z]+-[a-z0-9._-]+)"')
     models = sorted({m for m in raw if _COPILOT_MODEL_RE.match(m)})
-    return models if models else None
+    return filter_copilot(models) if models else None
 
 
 # ---------------------------------------------------------------------------
@@ -258,7 +277,7 @@ def _discover_opencode() -> list[str] | None:
         if stripped.startswith("zai-coding-plan/"):
             models.append(stripped.removeprefix("zai-coding-plan/"))
 
-    return sorted(models) if models else None
+    return filter_opencode(models) if models else None
 
 
 # ---------------------------------------------------------------------------

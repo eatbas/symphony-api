@@ -10,9 +10,11 @@ in ``DISCOVERERS``.
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
+import tomllib
 from pathlib import Path
 from typing import Iterable
 
@@ -26,27 +28,104 @@ logger = logging.getLogger("symphony.discovery")
 # ---------------------------------------------------------------------------
 
 
+def _find_matching_bracket(text: str, opening_index: int) -> int | None:
+    """Return the closing ``]`` index for an array starting at *opening_index*."""
+    depth = 0
+    in_string: str | None = None
+    in_comment = False
+    escaped = False
+
+    for index in range(opening_index, len(text)):
+        char = text[index]
+
+        if in_comment:
+            if char == "\n":
+                in_comment = False
+            continue
+
+        if in_string is not None:
+            if in_string == '"':
+                if escaped:
+                    escaped = False
+                elif char == "\\":
+                    escaped = True
+                elif char == '"':
+                    in_string = None
+            elif char == in_string:
+                in_string = None
+            continue
+
+        if char == "#":
+            in_comment = True
+            continue
+        if char in {'"', "'"}:
+            in_string = char
+            continue
+        if char == "[":
+            depth += 1
+            continue
+        if char == "]":
+            depth -= 1
+            if depth == 0:
+                return index
+
+    return None
+
+
+def _locate_provider_models_array(text: str, provider: str) -> tuple[int, int] | None:
+    """Return the inclusive bounds of a provider's ``models = [...]`` array."""
+    section_header = re.search(rf"(?m)^\[providers\.{re.escape(provider)}\]\s*$", text)
+    if section_header is None:
+        return None
+
+    section_start = section_header.end()
+    next_section = re.search(r"(?m)^\[[^\n]+\]\s*$", text[section_start:])
+    section_end = section_start + next_section.start() if next_section else len(text)
+    section_text = text[section_start:section_end]
+
+    models_line = re.search(r"(?m)^models\s*=\s*", section_text)
+    if models_line is None:
+        return None
+
+    array_start = section_start + models_line.end()
+    while array_start < len(text) and text[array_start].isspace():
+        array_start += 1
+    if array_start >= len(text) or text[array_start] != "[":
+        return None
+
+    array_end = _find_matching_bracket(text, array_start)
+    if array_end is None:
+        return None
+    return array_start, array_end
+
+
 def parse_models_from_toml(text: str, provider: str) -> list[str]:
     """Extract the models array for *provider* from raw TOML text."""
-    pattern = rf'\[providers\.{re.escape(provider)}\].*?models\s*=\s*\[(.*?)\]'
-    match = re.search(pattern, text, re.DOTALL)
-    if not match:
+    bounds = _locate_provider_models_array(text, provider)
+    if bounds is None:
         return []
-    raw = match.group(1)
-    return [
-        m.strip().strip('"').strip("'")
-        for m in raw.split(",")
-        if m.strip().strip('"').strip("'")
-    ]
+
+    array_start, array_end = bounds
+    snippet = f"models = {text[array_start:array_end + 1]}\n"
+    try:
+        parsed = tomllib.loads(snippet)
+    except tomllib.TOMLDecodeError:
+        return []
+
+    models = parsed.get("models", [])
+    if not isinstance(models, list):
+        return []
+    return [str(item) for item in models if str(item).strip()]
 
 
 def _format_models_toml(models: list[str]) -> str:
     """Format a models list as a TOML array string."""
+    encoded = [json.dumps(model) for model in models]
     if len(models) <= 3:
-        return "[" + ", ".join(f'"{m}"' for m in models) + "]"
+        return "[" + ", ".join(encoded) + "]"
     lines = ["["]
-    for m in models:
-        lines.append(f'  "{m}",')
+    for model in encoded:
+        lines.append(f"  {model},")
     lines.append("]")
     return "\n".join(lines)
 
@@ -60,11 +139,13 @@ def replace_models_in_toml(
     text: str, provider: str, new_models: list[str],
 ) -> str:
     """Replace the models array for *provider* in raw TOML text."""
-    pattern = rf'(\[providers\.{re.escape(provider)}\].*?models\s*=\s*)\[.*?\]'
+    bounds = _locate_provider_models_array(text, provider)
+    if bounds is None:
+        return text
+
+    array_start, array_end = bounds
     replacement = _format_models_toml(new_models)
-    return re.sub(
-        pattern, rf'\g<1>{replacement}', text, count=1, flags=re.DOTALL,
-    )
+    return text[:array_start] + replacement + text[array_end + 1:]
 
 
 # ---------------------------------------------------------------------------
