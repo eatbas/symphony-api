@@ -17,6 +17,7 @@ from .routes import (
     _parse_generate_response,
     chat_router,
     console_router,
+    docs_router,
     providers_router,
     testlab_router,
     updates_router,
@@ -58,6 +59,7 @@ OPENAPI_TAGS = [
     {"name": "Updates", "description": "CLI version checking and auto-update management."},
     {"name": "Test Lab", "description": "Multi-model harness for NEW/RESUME verification workflows."},
     {"name": "Console", "description": "Built-in browser UI for interactive testing."},
+    {"name": "Documentation", "description": "Machine-readable integration documentation."},
 ]
 
 
@@ -185,6 +187,7 @@ def create_app() -> FastAPI:
         )
 
     app.include_router(console_router)
+    app.include_router(docs_router)
     app.include_router(providers_router)
     app.include_router(chat_router)
     app.include_router(updates_router)

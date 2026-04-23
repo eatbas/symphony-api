@@ -28,6 +28,7 @@ Start from `config.example.toml` for new local installs. Runtime config is local
 Open [http://127.0.0.1:8000/](http://127.0.0.1:8000/) to use the built-in web test console.
 
 Interactive API docs are available at `/docs` (Swagger) and `/redoc` (ReDoc).
+Integration guidance is available in `docs/`, and AI agents can start from `/llms.txt`.
 
 ## Providers
 

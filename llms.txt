@@ -1,0 +1,29 @@
+# Symphony API
+
+Symphony is an HTTP bridge for AI CLI providers. It accepts prompts, creates durable score IDs, runs provider CLIs through warm musician processes, and exposes score progress through polling or WebSocket streaming.
+
+Primary schema:
+- OpenAPI: /openapi.json
+- Swagger UI: /docs
+- ReDoc: /redoc
+
+Important docs:
+- docs/integration.md - human integration guide.
+- docs/ai-integration.md - AI agent workflow and lifecycle contract.
+- docs/client-generation.md - generated client guidance.
+- docs/configuration.md - runtime configuration and storage.
+
+Core workflow:
+1. Discover provider/model pairs with GET /v1/models or GET /v1/providers.
+2. Submit work with POST /v1/chat.
+3. Store the returned score_id.
+4. Track progress with GET /v1/chat/{score_id} or WS /v1/chat/{score_id}/ws.
+5. Stop when status is completed, failed, or stopped.
+6. Save provider_session_ref for future resume requests.
+
+Rules for AI agents:
+- POST /v1/chat returns 202 Accepted and does not contain the final model output.
+- workspace_path must be absolute.
+- mode=resume requires provider_session_ref.
+- WebSocket streams send score_snapshot first and close after terminal events.
+- final_text is authoritative only after status=completed.
