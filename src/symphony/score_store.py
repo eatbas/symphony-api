@@ -14,6 +14,7 @@ class ScoreStore:
 
     def __init__(self, root: Path | None = None, max_terminal_scores: int = _MAX_TERMINAL_SCORES) -> None:
         base = root or (Path.home() / ".maestro" / "symphony" / "scores")
+        base = base.expanduser()
         self.root = base
         self.max_terminal_scores = max_terminal_scores
         self._lock = threading.Lock()

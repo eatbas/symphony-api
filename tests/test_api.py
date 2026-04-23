@@ -1,6 +1,7 @@
 import os
 import time
 from fastapi.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 
 from symphony.models import InstrumentName
 from symphony.service import create_app
@@ -79,6 +80,10 @@ def test_chat_json_and_streaming(config_path, tmp_path):
             initial = websocket.receive_json()
             assert initial["type"] == "score_snapshot"
             assert initial["score"]["score_id"] == score_id
+            while True:
+                event = websocket.receive_json()
+                if event["type"] in {"completed", "failed", "stopped"}:
+                    break
         terminal = wait_for_terminal_score(client, score_id)
         assert terminal["final_text"] == "codex:hello"
 
@@ -335,3 +340,27 @@ def test_websocket_snapshot_includes_score_id(config_path, tmp_path):
             payload = websocket.receive_json()
             assert payload["type"] == "score_snapshot"
             assert payload["score"]["score_id"] == accepted["score_id"]
+
+
+def test_websocket_closes_after_terminal_event(config_path, tmp_path):
+    app = create_app()
+    with TestClient(app) as client:
+        body = {
+            "provider": "claude",
+            "model": "opus",
+            "workspace_path": str(tmp_path.resolve()),
+            "mode": "new",
+            "prompt": "hello",
+        }
+        accepted = submit_score(client, body)
+        with client.websocket_connect(f"/v1/chat/{accepted['score_id']}/ws") as websocket:
+            websocket.receive_json()
+            while True:
+                event = websocket.receive_json()
+                if event["type"] in {"completed", "failed", "stopped"}:
+                    break
+            try:
+                websocket.receive_json()
+            except WebSocketDisconnect:
+                return
+            raise AssertionError("WebSocket remained open after terminal event")

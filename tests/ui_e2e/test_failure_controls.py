@@ -8,7 +8,7 @@ from playwright.sync_api import Page, expect
 class TestFailedRequest:
     def test_failed_request_shows_error(self, console_page: Page, tmp_path):
         console_page.select_option("#provider", "claude")
-        console_page.select_option("#model", "sonnet")
+        console_page.select_option("#model", "opus")
         console_page.fill("#workspace_path", str(tmp_path.resolve()))
         console_page.fill("#prompt", "fail")
         console_page.click("#send-button")
@@ -28,7 +28,7 @@ class TestFailedRequest:
 
     def test_musician_stays_ready_after_cli_failure(self, console_page: Page, tmp_path):
         console_page.select_option("#provider", "claude")
-        console_page.select_option("#model", "sonnet")
+        console_page.select_option("#model", "opus")
         console_page.fill("#workspace_path", str(tmp_path.resolve()))
         console_page.fill("#prompt", "fail")
         console_page.click("#send-button")
@@ -50,9 +50,9 @@ class TestFailedRequest:
             ".musician-group",
             has=console_page.locator(".musician-group-header", has_text=re.compile(r"^claude\b", re.IGNORECASE)),
         )
-        sonnet_chip = claude_group.locator(".musician-chip", has_text="sonnet")
-        expect(sonnet_chip).to_have_count(1)
-        expect(sonnet_chip).to_contain_text("ready")
+        opus_chip = claude_group.locator(".musician-chip", has_text="opus")
+        expect(opus_chip).to_have_count(1)
+        expect(opus_chip).to_contain_text("ready")
 
     def test_recovery_after_failure(self, console_page: Page, tmp_path):
         console_page.select_option("#provider", "codex")
@@ -96,7 +96,7 @@ class TestRefreshWorkerState:
     def test_musicians_remain_after_refresh(self, console_page: Page):
         console_page.click("#refresh-button")
         console_page.wait_for_timeout(500)
-        expect(console_page.locator(".musician-chip")).to_have_count(9)
+        expect(console_page.locator(".musician-chip")).to_have_count(11)
 
 
 class TestModeToggle:

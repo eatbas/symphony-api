@@ -21,6 +21,11 @@ class ShellConfig:
 
 
 @dataclass(slots=True)
+class StorageConfig:
+    score_dir: Path | None = None
+
+
+@dataclass(slots=True)
 class InstrumentConfig:
     enabled: bool = True
     executable: str | None = None
@@ -42,6 +47,7 @@ class UpdaterConfig:
 class AppConfig:
     server: ServerConfig
     shell: ShellConfig
+    storage: StorageConfig
     providers: dict[InstrumentName, InstrumentConfig]
     updater: UpdaterConfig
     config_path: Path
@@ -84,7 +90,9 @@ def load_config(path: str | os.PathLike[str] | None = None) -> AppConfig:
 
     server = raw.get("server", {})
     shell = raw.get("shell", {})
+    storage = raw.get("storage", {})
     updater = raw.get("updater", {})
+    score_dir = os.environ.get("SYMPHONY_SCORE_DIR") or storage.get("score_dir")
 
     return AppConfig(
         server=ServerConfig(
@@ -93,6 +101,9 @@ def load_config(path: str | os.PathLike[str] | None = None) -> AppConfig:
         ),
         shell=ShellConfig(
             path=(str(shell["path"]).strip() or None) if shell.get("path") is not None else None,
+        ),
+        storage=StorageConfig(
+            score_dir=Path(str(score_dir)).expanduser() if score_dir else None,
         ),
         providers=_default_instrument_map(raw),
         updater=UpdaterConfig(

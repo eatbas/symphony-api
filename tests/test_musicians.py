@@ -309,3 +309,26 @@ async def test_score_status_transitions(loaded_config):
         assert handle.score_id
     finally:
         await manager.stop()
+
+
+@pytest.mark.asyncio()
+async def test_concurrent_acquire_respects_pool_concurrency(loaded_config):
+    manager = Orchestra(loaded_config)
+    loaded_config.providers[InstrumentName.CODEX].concurrency = 2
+    await manager.start()
+    try:
+        musician = manager.get_musician(InstrumentName.CODEX, "gpt-5.4")
+        assert musician is not None
+        musician.busy = True
+
+        acquired = await asyncio.gather(
+            *(
+                manager.acquire_musician(InstrumentName.CODEX, "gpt-5.4")
+                for _ in range(5)
+            )
+        )
+
+        assert all(item is not None for item in acquired)
+        assert len(manager.musicians[(InstrumentName.CODEX, "gpt-5.4")]) == 2
+    finally:
+        await manager.stop()

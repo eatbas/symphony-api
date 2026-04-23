@@ -23,6 +23,7 @@ uvicorn symphony.main:app --reload
 ```
 
 Default config is loaded from `config.toml`. Override with `SYMPHONY_CONFIG=/path/to/config.toml`.
+Start from `config.example.toml` for new local installs. Runtime config is local-only; model discovery can update it based on installed CLIs.
 
 Open [http://127.0.0.1:8000/](http://127.0.0.1:8000/) to use the built-in web test console.
 
@@ -50,6 +51,9 @@ port = 8000
 
 [shell]
 path = ""  # Auto-detect on Windows
+
+[storage]
+score_dir = ""  # empty = ~/.maestro/symphony/scores; override with SYMPHONY_SCORE_DIR
 
 [providers.claude]
 enabled = true

@@ -1,0 +1,99 @@
+[server]
+host = "127.0.0.1"
+port = 8000
+
+[shell]
+# On Windows the app prefers Git Bash automatically when this is empty.
+path = ""
+
+[storage]
+# Leave empty to use ~/.maestro/symphony/scores, or set a writable absolute path.
+score_dir = ""
+
+[providers.gemini]
+enabled = true
+executable = ""
+models = [
+  "gemini-2.5-flash",
+  "gemini-2.5-pro",
+  "gemini-3-flash-preview",
+  "gemini-3-pro-preview",
+  "gemini-3.1-pro-preview",
+]
+default_options = { extra_args = [] }
+# Desktop app manages timeouts via agent_timeout_ms; 0 = no sidecar timeout.
+cli_timeout = 0
+# Seconds without any CLI output before assuming the process is stuck; 0 = disabled.
+idle_timeout = 0
+
+[providers.codex]
+enabled = true
+executable = ""
+models = [
+  "gpt-5.3-codex",
+  "gpt-5.4",
+  "gpt-5.4-mini",
+]
+default_options = { extra_args = [] }
+cli_timeout = 0
+idle_timeout = 0
+
+[providers.claude]
+enabled = true
+executable = ""
+models = [
+  "haiku",
+  "opus",
+  "opus[1m]",
+  "sonnet",
+]
+default_options = { extra_args = [] }
+cli_timeout = 0
+idle_timeout = 0
+
+[providers.kimi]
+enabled = true
+executable = ""
+models = ["kimi-code/kimi-for-coding"]
+default_options = { extra_args = [] }
+cli_timeout = 0
+idle_timeout = 0
+
+[providers.copilot]
+enabled = true
+executable = ""
+models = [
+  "claude-haiku-4.5",
+  "claude-opus-4.6",
+  "claude-opus-4.6-1m",
+  "claude-opus-4.6-fast",
+  "claude-sonnet-4.6",
+  "gemini-2.5-pro",
+  "gemini-3-pro-preview",
+  "gemini-3.1-pro-preview",
+  "gpt-5.3-codex",
+  "gpt-5.4",
+  "gpt-5.4-mini",
+  "gpt-5.4-nano",
+]
+default_options = { extra_args = [] }
+cli_timeout = 0
+idle_timeout = 0
+
+[providers.opencode]
+enabled = true
+executable = ""
+models = [
+  "glm-5",
+  "glm-5-turbo",
+  "glm-5.1",
+  "glm-5v-turbo",
+]
+default_options = { extra_args = [] }
+cli_timeout = 0
+idle_timeout = 0
+
+[updater]
+enabled = true
+interval_hours = 4
+auto_update = true

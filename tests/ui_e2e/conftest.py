@@ -31,7 +31,7 @@ def server(tmp_path_factory):
     tmp = tmp_path_factory.mktemp("ui")
     cfg = make_config(tmp)
 
-    env = {**os.environ, "SYMPHONY_CONFIG": str(cfg)}
+    env = {**os.environ, "SYMPHONY_CONFIG": str(cfg), "SYMPHONY_SKIP_DISCOVERY": "1"}
     proc = subprocess.Popen(
         [
             sys.executable,

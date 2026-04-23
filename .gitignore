@@ -6,6 +6,8 @@ __pycache__/
 .coverage
 playwright-report/
 test-results/
+config.toml
+!config.example.toml
 
 # Local Claude skills
 .claude/skills/

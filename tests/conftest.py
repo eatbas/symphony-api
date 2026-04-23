@@ -36,6 +36,8 @@ def make_wrapper(tmp_path: Path, provider: str) -> str:
 
 def make_config(tmp_path: Path) -> Path:
     providers = {provider.value: make_wrapper(tmp_path, provider.value) for provider in InstrumentName}
+    score_dir = tmp_path.parent / f"{tmp_path.name}-scores"
+    escaped_score_dir = str(score_dir.resolve()).replace("\\", "\\\\")
     escaped_providers = {
         key: value.replace("\\", "\\\\")
         for key, value in providers.items()
@@ -49,6 +51,9 @@ port = 8000
 
 [shell]
 path = ""
+
+[storage]
+score_dir = "{escaped_score_dir}"
 
 [providers.gemini]
 enabled = true
@@ -85,6 +90,9 @@ enabled = true
 executable = "{escaped_providers['opencode']}"
 models = ["glm-4.5", "glm-5.1"]
 default_options = {{ extra_args = [] }}
+
+[updater]
+enabled = false
 """.strip(),
         encoding="utf-8",
     )

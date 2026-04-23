@@ -93,6 +93,9 @@ async def score_websocket(websocket: WebSocket, score_id: str) -> None:
         while True:
             event = await queue.get()
             await websocket.send_json(event)
+            if event.get("type") in TERMINAL_STATUSES:
+                await websocket.close()
+                return
     except WebSocketDisconnect:
         return
     finally:

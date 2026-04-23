@@ -31,8 +31,12 @@ class Orchestra:
         self.session_models: dict[tuple[InstrumentName, str], str] = {}
         self.available_providers: dict[InstrumentName, bool] = {}
         self._scores: dict[str, ScoreHandle] = {}
+        self._pool_locks: dict[tuple[InstrumentName, str], asyncio.Lock] = {}
         self._ready = asyncio.Event()
-        self.score_store = ScoreStore(max_terminal_scores=_MAX_COMPLETED_SCORES)
+        self.score_store = ScoreStore(
+            root=config.storage.score_dir,
+            max_terminal_scores=_MAX_COMPLETED_SCORES,
+        )
 
     def _all_musicians(self) -> list[Musician]:
         """Return a flat list of every musician across all pools."""
@@ -115,44 +119,53 @@ class Orchestra:
         3. Otherwise return the musician with the smallest queue.
         """
         key = (provider, model)
-        pool = self.musicians.get(key)
-        if not pool:
-            return None
+        async with self._pool_lock(key):
+            pool = self.musicians.get(key)
+            if not pool:
+                return None
 
-        # Prefer an idle musician.
-        for musician in pool:
-            if musician.is_idle:
-                return musician
+            # Prefer an idle musician.
+            for musician in pool:
+                if musician.is_idle:
+                    return musician
 
-        # All busy -- scale up if under the concurrency limit.
-        instrument_config = self.config.providers.get(provider)
-        max_pool = instrument_config.concurrency if instrument_config else 1
-        if len(pool) < max_pool:
-            template = pool[0]
-            new_musician = Musician(
-                provider=provider,
-                model=model,
-                adapter=template.adapter,
-                executable=template.executable,
-                shell_path=template.shell_backend,
-                default_options=template.default_options,
-                session_models=self.session_models,
-                cli_timeout=template.cli_timeout,
-                idle_timeout=template.idle_timeout,
-            )
-            await new_musician.start()
-            pool.append(new_musician)
-            logger.info(
-                "Scaled musician pool %s/%s to %d (max %d)",
-                provider.value,
-                model,
-                len(pool),
-                max_pool,
-            )
-            return new_musician
+            # All busy -- scale up if under the concurrency limit.
+            instrument_config = self.config.providers.get(provider)
+            max_pool = max(1, instrument_config.concurrency if instrument_config else 1)
+            if len(pool) < max_pool:
+                template = pool[0]
+                new_musician = Musician(
+                    provider=provider,
+                    model=model,
+                    adapter=template.adapter,
+                    executable=template.executable,
+                    shell_path=template.shell_backend,
+                    default_options=template.default_options,
+                    session_models=self.session_models,
+                    cli_timeout=template.cli_timeout,
+                    idle_timeout=template.idle_timeout,
+                )
+                await new_musician.start()
+                pool.append(new_musician)
+                logger.info(
+                    "Scaled musician pool %s/%s to %d (max %d)",
+                    provider.value,
+                    model,
+                    len(pool),
+                    max_pool,
+                )
+                return new_musician
 
-        # Pool full -- return the least-loaded musician.
-        return min(pool, key=lambda m: m.queue.qsize())
+            # Pool full -- return the least-loaded musician.
+            return min(pool, key=lambda m: m.queue.qsize())
+
+    def _pool_lock(self, key: tuple[InstrumentName, str]) -> asyncio.Lock:
+        """Return the lock guarding lazy scaling for a provider/model pool."""
+        lock = self._pool_locks.get(key)
+        if lock is None:
+            lock = asyncio.Lock()
+            self._pool_locks[key] = lock
+        return lock
 
     # ------------------------------------------------------------------
     # Score registry
