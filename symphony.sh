@@ -1,50 +1,35 @@
 #!/usr/bin/env bash
-# Symphony API — tmux session manager
+# Symphony API — systemd wrapper
 # Usage: ./symphony.sh [start|stop|restart|attach|status|logs]
 
-SESSION="symphony"
-DIR="/root/symphony-api"
-VENV="$DIR/.venv"
-UVICORN="$VENV/bin/uvicorn"
-LOG="$DIR/symphony.log"
+SERVICE="symphony.service"
+LOG="/root/symphony-api/symphony.log"
 
 start() {
-    if tmux has-session -t "$SESSION" 2>/dev/null; then
-        echo "[symphony] Already running (session: $SESSION)"
-        return 0
-    fi
-    echo "[symphony] Starting in tmux session '$SESSION'..."
-    tmux new-session -d -s "$SESSION" -x 220 -y 50
-    tmux send-keys -t "$SESSION" \
-        "cd $DIR && $UVICORN symphony.main:app --host 0.0.0.0 --port 8080 2>&1 | tee -a $LOG" \
-        Enter
-    echo "[symphony] Started. Attach with:  tmux attach -t $SESSION"
+    systemctl start "$SERVICE"
+    status
 }
 
 stop() {
-    if ! tmux has-session -t "$SESSION" 2>/dev/null; then
-        echo "[symphony] Not running."
-        return 0
-    fi
-    echo "[symphony] Stopping session '$SESSION'..."
-    tmux kill-session -t "$SESSION"
+    systemctl stop "$SERVICE"
     echo "[symphony] Stopped."
 }
 
 attach() {
-    if ! tmux has-session -t "$SESSION" 2>/dev/null; then
-        echo "[symphony] Not running. Start it first with: $0 start"
-        exit 1
-    fi
-    tmux attach -t "$SESSION"
+    # Under systemd there is no tmux session. Tail the journal live; this is
+    # the closest equivalent to "attach" and is detach-safe (Ctrl-C only kills
+    # the tail, not the service).
+    echo "[symphony] Tailing journal (Ctrl-C to exit; service keeps running)..."
+    journalctl -fu "$SERVICE"
 }
 
 status() {
-    if tmux has-session -t "$SESSION" 2>/dev/null; then
-        echo "[symphony] RUNNING (tmux session: $SESSION)"
+    if systemctl is-active --quiet "$SERVICE"; then
+        echo "[symphony] RUNNING (systemd service: $SERVICE)"
         echo "[symphony] API: http://127.0.0.1:8080  Docs: http://127.0.0.1:8080/docs"
     else
         echo "[symphony] STOPPED"
+        echo "[symphony] Start with: $0 start  (or: systemctl start $SERVICE)"
     fi
 }
 
@@ -52,14 +37,15 @@ logs() {
     if [[ -f "$LOG" ]]; then
         tail -f "$LOG"
     else
-        echo "[symphony] No log file yet at $LOG"
+        echo "[symphony] No log file yet at $LOG — falling back to journal"
+        journalctl -fu "$SERVICE"
     fi
 }
 
 case "${1:-start}" in
     start)   start ;;
     stop)    stop ;;
-    restart) stop; sleep 1; start ;;
+    restart) systemctl restart "$SERVICE"; status ;;
     attach)  attach ;;
     status)  status ;;
     logs)    logs ;;
