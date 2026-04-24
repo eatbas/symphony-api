@@ -178,15 +178,54 @@ class TestIsProviderIdle:
 
 
 class TestAPIEndpoints:
-    def test_cli_versions_returns_empty_initially(self, config_path):
+    def test_cli_versions_lazy_loads_when_cache_empty(self, config_path):
+        """GET /v1/cli-versions triggers a check when the updater cache is
+        empty, so callers don't see an empty window during Symphony start-up."""
         from fastapi.testclient import TestClient
         from symphony.service import create_app
 
         app = create_app()
         with TestClient(app) as client:
-            response = client.get("/v1/cli-versions")
-            assert response.status_code == 200
-            assert response.json() == []
+            with patch(
+                "symphony.updater.updater.CLIUpdater.get_current_version",
+                new_callable=AsyncMock,
+            ) as mock_curr, patch(
+                "symphony.updater.updater.CLIUpdater.get_latest_version",
+                new_callable=AsyncMock,
+            ) as mock_latest:
+                mock_curr.return_value = "1.0.0"
+                mock_latest.return_value = "1.0.0"
+                response = client.get("/v1/cli-versions")
+                assert response.status_code == 200
+                data = response.json()
+                assert len(data) == 6
+                assert mock_curr.await_count >= 1
+                assert mock_latest.await_count >= 1
+
+    def test_cli_versions_returns_cached_results(self, config_path):
+        """After results are cached, subsequent GETs don't trigger a new check."""
+        from fastapi.testclient import TestClient
+        from symphony.service import create_app
+
+        app = create_app()
+        with TestClient(app) as client:
+            with patch(
+                "symphony.updater.updater.CLIUpdater.get_current_version",
+                new_callable=AsyncMock,
+            ) as mock_curr, patch(
+                "symphony.updater.updater.CLIUpdater.get_latest_version",
+                new_callable=AsyncMock,
+            ) as mock_latest:
+                mock_curr.return_value = "1.0.0"
+                mock_latest.return_value = "1.0.0"
+                # First call populates the cache.
+                client.get("/v1/cli-versions")
+                prior_count = mock_curr.await_count
+                # Second call should hit the cache.
+                response = client.get("/v1/cli-versions")
+                assert response.status_code == 200
+                assert len(response.json()) == 6
+                assert mock_curr.await_count == prior_count
 
     def test_cli_versions_check_returns_results(self, config_path):
         from fastapi.testclient import TestClient
