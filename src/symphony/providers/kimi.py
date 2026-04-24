@@ -4,7 +4,7 @@ import shlex
 from typing import Any
 
 from .base import CommandSpec, ParseState, ProviderAdapter
-from .options import boolean_thinking_schema, thinking_enabled
+from .options import boolean_thinking_schema, get_ralph_iterations, ralph_iterations_schema, thinking_enabled
 from ..models import InstrumentName
 from ..shells import to_bash_path
 
@@ -67,11 +67,14 @@ class KimiAdapter(ProviderAdapter):
             ]
         )
         self._apply_model_override(argv, model)
+        ralph = get_ralph_iterations(provider_options)
+        if ralph is not None:
+            argv.extend(["--max-ralph-iterations", str(ralph)])
         argv.extend(self._extra_args(provider_options))
         return argv
 
     def model_option_schema(self, model: str) -> list[dict[str, Any]]:
-        return boolean_thinking_schema(default="enabled")
+        return boolean_thinking_schema(default="enabled") + ralph_iterations_schema(default="1")
 
     def make_shell_script(self, workspace_path: str, command: CommandSpec) -> str:
         workspace = shlex.quote(to_bash_path(workspace_path))

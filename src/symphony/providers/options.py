@@ -108,6 +108,40 @@ def thinking_enabled(provider_options: dict[str, Any], *, default: bool = True) 
     return raw == "enabled"
 
 
+def ralph_iterations_schema(
+    *,
+    default: str = "1",
+) -> list[dict[str, Any]]:
+    return [
+        {
+            "key": "max_ralph_iterations",
+            "label": "Ralph Iterations",
+            "type": "select",
+            "default": default,
+            "choices": [
+                {"value": "1", "label": "1", "description": "Single pass — no extra iterations."},
+                {"value": "3", "label": "3", "description": "Up to two extra iterations."},
+                {"value": "5", "label": "5", "description": "Up to four extra iterations."},
+                {"value": "-1", "label": "Unlimited", "description": "Agent decides when to stop."},
+            ],
+        }
+    ]
+
+
+def get_ralph_iterations(provider_options: dict[str, Any]) -> int | None:
+    raw = provider_options.get("max_ralph_iterations")
+    if raw is None:
+        return None
+    if isinstance(raw, int):
+        return raw
+    if isinstance(raw, str):
+        try:
+            return int(raw)
+        except ValueError:
+            pass
+    raise ValueError("provider_options.max_ralph_iterations must be an integer or integer string")
+
+
 def apply_thinking_prompt_hint(prompt: str, provider_options: dict[str, Any]) -> str:
     level = get_thinking_level(provider_options)
     if level is None:
