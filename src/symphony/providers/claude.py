@@ -63,6 +63,8 @@ class ClaudeAdapter(ProviderAdapter):
 
     def _apply_effort(self, argv: list[str], model: str, provider_options: dict) -> None:
         levels = self._effort_levels_for_model(model)
+        if not levels:
+            return
         effort = get_thinking_level(provider_options, allowed=levels)
         if effort:
             argv.extend(["--effort", effort])

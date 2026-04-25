@@ -89,6 +89,19 @@ def test_claude_haiku_model_option_schema_omits_thinking_level():
     assert adapter.model_option_schema("haiku") == []
 
 
+def test_claude_haiku_ignores_stale_thinking_level():
+    adapter = ClaudeAdapter()
+    command = adapter.build_command(
+        executable="claude",
+        mode=ChatMode.NEW,
+        prompt="hello",
+        model="haiku",
+        session_ref=None,
+        provider_options={"thinking_level": "high"},
+    )
+    assert "--effort" not in command.argv
+
+
 def test_claude_sonnet_model_option_schema_omits_opus_only_efforts():
     adapter = ClaudeAdapter()
     schema = adapter.model_option_schema("sonnet")
