@@ -102,6 +102,9 @@ class _ExecutorMixin:
 
         idle_event = asyncio.Event()
         idle_event.set()  # Mark as active initially.
+        # Tracks whether we have already reacted to an adapter-detected
+        # fatal error so we only interrupt the shell once per run.
+        fatal_interrupt = {"triggered": False}
 
         async def on_line(line: str) -> None:
             idle_event.set()  # Reset idle timer on every output line.
@@ -109,6 +112,19 @@ class _ExecutorMixin:
                 return
             for event in self.adapter.parse_output_line(line, parse_state):
                 await handle.publish(event)
+            # If the adapter just flagged a fatal CLI error in its
+            # output (e.g. kimi printed "LLM provider error", claude
+            # printed "API Error: socket connection was closed"), the
+            # CLI may keep running indefinitely without ever returning.
+            # We interrupt the shell so :meth:`run_script` returns and
+            # the score is marked failed with the adapter's specific
+            # message, instead of hanging forever in "running" state.
+            if parse_state.error_message is not None and not fatal_interrupt["triggered"]:
+                fatal_interrupt["triggered"] = True
+                try:
+                    await self.shell.interrupt()
+                except Exception:  # pragma: no cover - interrupt is best-effort
+                    pass
 
         script = self.adapter.make_shell_script(request.workspace_path, command)
         timeout = self.cli_timeout if self.cli_timeout > 0 else None
@@ -134,6 +150,18 @@ class _ExecutorMixin:
         except ShellSessionError as exc:
             if handle.cancelled.is_set():
                 raise ScoreCancelledError(f"Score {handle.score_id} was stopped") from exc
+            # When we deliberately interrupted the shell because the
+            # adapter spotted a fatal CLI error, surface the adapter's
+            # specific message instead of the generic "bash terminated
+            # unexpectedly" -- otherwise the user just sees a confusing
+            # shell error instead of the real cause (e.g. "LLM provider
+            # connection error").
+            if fatal_interrupt["triggered"] and parse_state.error_message:
+                # Restart the bash session so the next score can run.
+                if self.shell.process and self.shell.process.returncode is None:
+                    await self.shell.stop()
+                await self.shell.start()
+                raise ShellSessionError(parse_state.error_message) from exc
             raise
         finally:
             for task in (cancel_watcher, idle_watcher):

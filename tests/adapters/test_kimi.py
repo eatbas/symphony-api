@@ -114,3 +114,52 @@ def test_kimi_parse_skips_empty_lines():
     state = ParseState()
     events = adapter.parse_output_line("   ", state)
     assert events == []
+
+
+def test_kimi_parse_flags_llm_provider_error_as_fatal():
+    """Regression: when kimi-for-coding loses its LLM connection it
+    prints an error message in plain text but the CLI itself does NOT
+    exit. Previously the score would sit in "running" indefinitely;
+    now the adapter must set ``error_message`` so the executor can
+    interrupt the shell and finalise the score with the real cause.
+    """
+    adapter = KimiAdapter()
+    state = ParseState()
+    line = "<system>ERROR: LLM provider error when running agent: Connection error.</system>"
+    adapter.parse_output_line(line, state)
+    assert state.error_message is not None
+    assert "LLM provider error" in state.error_message
+
+
+def test_kimi_parse_fatal_marker_is_first_match_wins():
+    """A second matching error must not overwrite the first one --
+    the original failure cause should be preserved end-to-end.
+    """
+    adapter = KimiAdapter()
+    state = ParseState()
+    adapter.parse_output_line(
+        "<system>ERROR: LLM provider error when running agent: Connection error.</system>",
+        state,
+    )
+    first = state.error_message
+    adapter.parse_output_line(
+        "<system>ERROR: LLM provider error when running agent: Different cause.</system>",
+        state,
+    )
+    assert state.error_message == first
+
+
+def test_kimi_parse_fatal_marker_inside_json_text_content():
+    """The fatal pattern must be detected even when the CLI emits the
+    error inside a JSON ``content[].text`` field rather than as plain
+    text -- newer kimi versions may switch to the structured form.
+    """
+    adapter = KimiAdapter()
+    state = ParseState()
+    line = (
+        '{"content":[{"type":"text","text":"ERROR: LLM provider error when '
+        'running agent: Connection error."}]}'
+    )
+    adapter.parse_output_line(line, state)
+    assert state.error_message is not None
+    assert "LLM provider error" in state.error_message

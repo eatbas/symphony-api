@@ -214,6 +214,32 @@ class ProviderAdapter:
         except json.JSONDecodeError:
             return None
 
+    def _detect_fatal_error(
+        self,
+        text: str,
+        state: ParseState,
+        patterns: tuple[str, ...],
+    ) -> None:
+        """Mark ``state`` as failed when the CLI prints a known fatal message.
+
+        Some CLIs print a clear error indicator -- e.g. an LLM provider
+        connection drop -- and then sit idle without exiting. The
+        executor watches ``state.error_message`` and, when an adapter
+        sets it from inside :meth:`parse_output_line`, interrupts the
+        shell so the score is finalised promptly with the captured
+        message instead of hanging in "running" forever.
+
+        We only set ``error_message`` once per run (first match wins)
+        so subsequent output cannot accidentally clear or overwrite the
+        original failure cause.
+        """
+        if state.error_message is not None:
+            return
+        for pattern in patterns:
+            if pattern and pattern in text:
+                state.error_message = text.strip()
+                return
+
     def new_session_ref(self) -> str | None:
         return None
 

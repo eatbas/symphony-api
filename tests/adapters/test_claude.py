@@ -122,3 +122,65 @@ def test_claude_parse_detects_error_result():
     state = ParseState()
     adapter.parse_output_line('{"type":"result","subtype":"error","result":"something went wrong"}', state)
     assert state.error_message is not None
+
+
+def test_claude_parse_flags_socket_disconnect_as_fatal():
+    """Regression: when the claude API drops the socket mid-stream the
+    CLI emits the error inside an assistant text chunk and then exits
+    with code 1 -- but the user only saw "claude exited with code 1"
+    and no idea why. The adapter must capture the actual API error so
+    the score's failure reason is meaningful.
+    """
+    adapter = ClaudeAdapter()
+    state = ParseState()
+    line = (
+        '{"type":"assistant","message":{"content":[{"type":"text",'
+        '"text":"API Error: The socket connection was closed unexpectedly. '
+        'For more information, pass `verbose: true` in the second argument to fetch()"}]}}'
+    )
+    adapter.parse_output_line(line, state)
+    assert state.error_message is not None
+    assert "socket connection was closed" in state.error_message
+
+
+def test_claude_parse_flags_unable_to_connect_as_fatal():
+    """Regression for a real production run: claude printed
+    "API Error: Unable to connect. Is the computer able to access the
+    url?" then exited with code 1. The pattern list previously only
+    covered the "socket connection was closed" variant, so the user
+    saw the meaningless "claude exited with code 1" and had to dig
+    through score JSON to find the real cause.
+    """
+    adapter = ClaudeAdapter()
+    state = ParseState()
+    line = (
+        '{"type":"assistant","message":{"content":[{"type":"text",'
+        '"text":"API Error: Unable to connect. Is the computer able to access the url?"}]}}'
+    )
+    adapter.parse_output_line(line, state)
+    assert state.error_message is not None
+    assert "Unable to connect" in state.error_message
+
+
+def test_claude_parse_flags_rate_limit_as_fatal():
+    adapter = ClaudeAdapter()
+    state = ParseState()
+    line = (
+        '{"type":"assistant","message":{"content":[{"type":"text",'
+        '"text":"API Error: 429 Too Many Requests"}]}}'
+    )
+    adapter.parse_output_line(line, state)
+    assert state.error_message is not None
+    assert "429" in state.error_message
+
+
+def test_claude_parse_flags_server_error_as_fatal():
+    adapter = ClaudeAdapter()
+    state = ParseState()
+    line = (
+        '{"type":"assistant","message":{"content":[{"type":"text",'
+        '"text":"API Error: 503 Service Unavailable"}]}}'
+    )
+    adapter.parse_output_line(line, state)
+    assert state.error_message is not None
+    assert "503" in state.error_message

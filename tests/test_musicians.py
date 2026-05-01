@@ -375,6 +375,50 @@ async def test_runner_supervisor_resurrects_dead_worker(loaded_config):
 
 
 @pytest.mark.asyncio()
+async def test_executor_interrupts_cli_on_adapter_fatal_error(loaded_config):
+    """Regression: when an adapter spots a fatal error in the CLI's
+    output (e.g. kimi prints "LLM provider error" and then hangs),
+    the executor must interrupt the shell so the score is finalised
+    with the adapter's specific message instead of sitting at "running"
+    forever.
+
+    Without this, the desktop UI shows the planner stuck mid-run and
+    the entire pipeline blocks waiting for a CLI that will never exit
+    on its own. The fake CLI for this test sleeps for 60 seconds after
+    printing the fatal marker -- the test must complete in well under
+    that, otherwise the interrupt did not fire.
+    """
+    manager = Orchestra(loaded_config)
+    await manager.start()
+    try:
+        musician = manager.get_musician(InstrumentName.KIMI, "kimi-code/kimi-for-coding")
+        assert musician is not None
+        handle = await musician.submit(
+            _new_request(
+                InstrumentName.KIMI,
+                "kimi-code/kimi-for-coding",
+                prompt="hang-after-fatal please",
+            )
+        )
+        # If the interrupt logic works the score must reject quickly.
+        # Allow a small window for shell teardown but not the full 60s
+        # the fake CLI would otherwise sleep for.
+        with pytest.raises(Exception) as exc_info:
+            await asyncio.wait_for(handle.result_future, timeout=15.0)
+        # The surfaced error must be the adapter's specific message,
+        # not a generic "bash terminated unexpectedly".
+        assert "LLM provider error" in str(exc_info.value)
+        # Musician must remain ready for the next score after recovery.
+        followup = await musician.submit(
+            _new_request(InstrumentName.KIMI, "kimi-code/kimi-for-coding")
+        )
+        result = await asyncio.wait_for(followup.result_future, timeout=10.0)
+        assert result.exit_code == 0
+    finally:
+        await manager.stop()
+
+
+@pytest.mark.asyncio()
 async def test_runner_survives_unexpected_exception(loaded_config):
     """A bug in one score's processing must not strand later scores.
 

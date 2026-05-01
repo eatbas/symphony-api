@@ -81,6 +81,14 @@ elif provider == "claude":
     emit(f'{{"type":"result","subtype":"success","session_id":"{session_id}","result":"claude:{prompt}"}}')
 elif provider == "kimi":
     session_id = read_flag("--session") or "kimi-session-new"
+    if "hang-after-fatal" in prompt:
+        # Simulate the real-world kimi failure that motivated the
+        # adapter's fatal-pattern detection: print the LLM provider
+        # connection error, then sleep without ever exiting. The
+        # executor must spot the error in the parser and interrupt.
+        emit('<system>ERROR: LLM provider error when running agent: Connection error.</system>')
+        time.sleep(60)
+        sys.exit(0)
     emit('{"role":"assistant","content":[{"type":"text","text":"kimi:' + prompt.replace('"', '\\"') + '"}]}')
 elif provider == "codex":
     if len(args) >= 2 and args[0] == "exec" and args[1] == "resume":

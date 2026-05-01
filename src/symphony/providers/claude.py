@@ -11,6 +11,21 @@ class ClaudeAdapter(ProviderAdapter):
     name = InstrumentName.CLAUDE
     default_executable = "claude"
     session_reference_format = "uuid"
+    # Substrings that indicate the claude CLI has hit an unrecoverable
+    # API error. The CLI sometimes prints these as part of an assistant
+    # text chunk and then exits with a confusing generic code; surfacing
+    # them lets the executor finalise the score with the actual cause
+    # instead of "claude exited with code 1".
+    #
+    # We match the prefix "API Error:" alone because claude emits many
+    # variants -- "Unable to connect", "The socket connection was
+    # closed", "Connection error", "503 Service Unavailable", "429 Too
+    # Many Requests", and others. The prefix is only printed by the CLI
+    # when an actual API call has failed, so the false-positive risk is
+    # very low.
+    _FATAL_ERROR_PATTERNS: tuple[str, ...] = (
+        "API Error:",
+    )
 
     def new_session_ref(self) -> str | None:
         return self._uuid()
@@ -102,7 +117,12 @@ class ClaudeAdapter(ProviderAdapter):
             message = obj.get("message", {})
             for item in message.get("content", []):
                 if item.get("type") == "text":
-                    events.extend(self._append_chunk(state, str(item.get("text", ""))))
+                    text = str(item.get("text", ""))
+                    # Claude streams its API errors as assistant text;
+                    # spot them so we don't wait for the CLI to also
+                    # crash separately.
+                    self._detect_fatal_error(text, state, self._FATAL_ERROR_PATTERNS)
+                    events.extend(self._append_chunk(state, text))
 
         if obj.get("type") == "result" and obj.get("subtype") != "success":
             errors = obj.get("errors") or [obj.get("result") or "Claude command failed"]

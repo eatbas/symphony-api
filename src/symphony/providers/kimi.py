@@ -14,6 +14,15 @@ class KimiAdapter(ProviderAdapter):
     default_executable = "kimi"
     session_reference_format = "opaque-string"
     _AUTOMATION_ARGS = ["--print", "--output-format", "stream-json"]
+    # Substrings that the kimi-for-coding CLI prints when its underlying
+    # LLM connection or session has unrecoverably failed. After printing
+    # one of these the CLI may sit idle without exiting; the executor
+    # treats any of them as a terminal failure and stops the run.
+    _FATAL_ERROR_PATTERNS: tuple[str, ...] = (
+        "LLM provider error when running agent",
+        "ERROR: Unable to connect to provider",
+        "Session expired -- please reauthenticate",
+    )
 
     def new_session_ref(self) -> str | None:
         return self._uuid()
@@ -91,6 +100,13 @@ class KimiAdapter(ProviderAdapter):
         )
 
     def parse_output_line(self, line: str, state: ParseState) -> list[dict[str, object]]:
+        # Always scan the raw line for known fatal error markers --
+        # kimi often emits these as plain text wrapped in
+        # ``<system>...</system>`` tags rather than as JSON, and once
+        # we've seen one the CLI may stay alive without producing
+        # further useful output.
+        self._detect_fatal_error(line, state, self._FATAL_ERROR_PATTERNS)
+
         obj = self._parse_json(line)
         if obj is None:
             # Non-JSON lines (plain text progress, thinking, etc.) — emit as-is.
@@ -107,7 +123,9 @@ class KimiAdapter(ProviderAdapter):
         for item in content_items:
             item_type = item.get("type", "")
             if item_type == "text":
-                events.extend(self._append_chunk(state, str(item.get("text", ""))))
+                text = str(item.get("text", ""))
+                self._detect_fatal_error(text, state, self._FATAL_ERROR_PATTERNS)
+                events.extend(self._append_chunk(state, text))
             elif item_type == "tool_use":
                 name = item.get("name", "unknown")
                 tool_input = item.get("input", {})
@@ -116,6 +134,7 @@ class KimiAdapter(ProviderAdapter):
             elif item_type == "tool_result":
                 output = str(item.get("output", item.get("content", "")))
                 if output.strip():
+                    self._detect_fatal_error(output, state, self._FATAL_ERROR_PATTERNS)
                     events.extend(self._append_chunk(state, self._summarise_tool_result(output)))
 
         for tool_call in obj.get("tool_calls", []):
@@ -128,6 +147,7 @@ class KimiAdapter(ProviderAdapter):
         if obj.get("role") == "tool":
             content = obj.get("content")
             if isinstance(content, str) and content.strip():
+                self._detect_fatal_error(content, state, self._FATAL_ERROR_PATTERNS)
                 events.extend(self._append_chunk(state, self._summarise_tool_result(content)))
         return events
 
