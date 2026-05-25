@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -6,6 +7,31 @@ import time
 
 provider = sys.argv[1]
 args = sys.argv[2:]
+
+
+# ---------------------------------------------------------------------------
+# Auxiliary modes used by version/update/discovery tests. These short-circuit
+# before the chat-event emission below so they never produce JSON events.
+# ---------------------------------------------------------------------------
+if "--version" in args:
+    sys.stdout.write(f"{provider} v1.2.3\n")
+    sys.stdout.flush()
+    sys.exit(0)
+
+if "--help" in args:
+    sys.stdout.write(f"Usage: {provider} [options]\n")
+    sys.stdout.flush()
+    sys.exit(0)
+
+if args[:1] == ["models"]:
+    sys.stdout.write('{"models": []}\n')
+    sys.stdout.flush()
+    sys.exit(0)
+
+if args[:1] == ["update"]:
+    sys.stdout.write("Updated successfully\n")
+    sys.stdout.flush()
+    sys.exit(0)
 
 
 def read_flag(flag: str):
@@ -100,6 +126,21 @@ else:
 
 if "slow" in prompt:
     time.sleep(5)
+
+if "silent-hang" in prompt:
+    # No further output -- drives the idle watcher.
+    time.sleep(120)
+
+if "hang-forever" in prompt:
+    # Periodically emit so the idle watcher does NOT fire, but the
+    # CLI never exits -- drives the cli_timeout branch.
+    for _ in range(600):
+        emit("still working")
+        time.sleep(0.1)
+
+_exit_match = re.search(r"exitcode=(\d+)", prompt)
+if _exit_match:
+    sys.exit(int(_exit_match.group(1)))
 
 if "fail" in prompt:
     sys.exit(3)

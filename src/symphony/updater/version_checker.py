@@ -35,7 +35,7 @@ def _run_cmd_sync(*args: str, timeout: int = _CMD_TIMEOUT) -> tuple[int, str]:
 
     # On Windows, wrap the command in a Git Bash invocation so we never
     # fall back to cmd.exe / PowerShell.
-    if os.name == "nt" and _bash_path:
+    if os.name == "nt" and _bash_path:  # pragma: no cover - Windows-only wrap
         script = " ".join(shlex.quote(a) for a in args)
         cmd: tuple[str, ...] | tuple[str, ...] = (_bash_path, "-c", script)
     else:
