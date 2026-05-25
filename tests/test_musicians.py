@@ -194,7 +194,7 @@ async def test_unavailable_provider_skips_musician_creation(loaded_config):
             assert manager.available_providers[InstrumentName.CLAUDE] is False
 
             # Other providers should still have musicians
-            assert manager.get_musician(InstrumentName.ANTIGRAVITY, "gemini-3-flash") is not None
+            assert manager.get_musician(InstrumentName.ANTIGRAVITY, "gemini-3.5-flash") is not None
             assert manager.available_providers[InstrumentName.ANTIGRAVITY] is True
 
             # capabilities() should report available=False for claude

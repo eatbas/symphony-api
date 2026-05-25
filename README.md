@@ -34,8 +34,8 @@ Integration guidance is available in `docs/`, and AI agents can start from `/llm
 
 | Provider     | CLI executable | Default models                           | Resume |
 | ------------ | -------------- | ---------------------------------------- | ------ |
-| **Antigravity** | `agy` | `gemini-3-flash`, `gemini-3-pro` | No |
-| **Codex** | `codex` | `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.3-codex`, `gpt-5.2` | Yes |
+| **Antigravity** | `agy` | `gemini-3.5-flash`, `gemini-3.1-pro` | No |
+| **Codex** | `codex` | `gpt-5.4`, `gpt-5.4-mini` | Yes |
 | **Claude** | `claude` | `opus`, `sonnet`, `haiku` | Yes |
 | **Kimi** | `kimi` | `kimi-code/kimi-for-coding` | Yes |
 

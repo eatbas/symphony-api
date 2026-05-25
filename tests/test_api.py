@@ -95,7 +95,7 @@ def test_chat_antigravity_json(config_path, tmp_path):
     with TestClient(app) as client:
         body = {
             "provider": "antigravity",
-            "model": "gemini-3-flash",
+            "model": "gemini-3.5-flash",
             "workspace_path": str(tmp_path.resolve()),
             "mode": "new",
             "prompt": "hello",

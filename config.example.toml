@@ -18,8 +18,8 @@ score_dir = ""
 enabled = true
 executable = ""
 models = [
-  "gemini-3-flash",
-  "gemini-3-pro",
+  "gemini-3.5-flash",
+  "gemini-3.1-pro",
 ]
 default_options = { extra_args = [] }
 # Desktop app manages timeouts via agent_timeout_ms; 0 = no sidecar timeout.
@@ -31,7 +31,6 @@ idle_timeout = 0
 enabled = true
 executable = ""
 models = [
-  "gpt-5.3-codex",
   "gpt-5.4",
   "gpt-5.4-mini",
 ]

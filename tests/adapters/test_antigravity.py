@@ -29,13 +29,13 @@ def test_antigravity_new_command_omits_model_flag_even_when_not_default():
         executable="agy",
         mode=ChatMode.NEW,
         prompt="hello",
-        model="gemini-3-pro",
+        model="gemini-3.1-pro",
         session_ref=None,
         provider_options={},
     )
     assert "--model" not in command.argv
     assert "-m" not in command.argv
-    assert "gemini-3-pro" not in command.argv
+    assert "gemini-3.1-pro" not in command.argv
 
 
 def test_antigravity_disables_resume_and_model_override():
@@ -60,7 +60,7 @@ def test_antigravity_parse_extracts_session_id():
     adapter = AntigravityAdapter()
     state = ParseState()
     events = adapter.parse_output_line(
-        '{"type":"init","session_id":"uuid-123","model":"gemini-3-flash"}',
+        '{"type":"init","session_id":"uuid-123","model":"gemini-3.5-flash"}',
         state,
     )
     assert state.session_ref == "uuid-123"
@@ -108,7 +108,7 @@ def test_antigravity_extra_args_appended_to_command():
 
 def test_antigravity_model_option_schema_is_empty():
     adapter = AntigravityAdapter()
-    assert adapter.model_option_schema("gemini-3-flash") == []
+    assert adapter.model_option_schema("gemini-3.5-flash") == []
 
 
 def test_antigravity_extra_args_rejects_non_list():

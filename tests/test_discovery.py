@@ -20,7 +20,7 @@ models = ["opus", "haiku"]
 
 [providers.antigravity]
 enabled = true
-models = ["gemini-3-flash"]
+models = ["gemini-3.5-flash"]
 """
 
 BRACKETED_MODEL_CONFIG = """\
@@ -39,7 +39,7 @@ models = [
 
 [providers.antigravity]
 enabled = true
-models = ["gemini-3-flash"]
+models = ["gemini-3.5-flash"]
 """
 
 
@@ -72,7 +72,7 @@ class TestDiscoverProvider:
         text = config.read_text(encoding="utf-8")
         assert '"sonnet"' in text
         # Antigravity section must be untouched.
-        assert '"gemini-3-flash"' in text
+        assert '"gemini-3.5-flash"' in text
 
     def test_updates_bracketed_model_arrays_without_corrupting_toml(self, tmp_path: Path) -> None:
         config = tmp_path / "config.toml"
@@ -93,7 +93,7 @@ class TestDiscoverProvider:
             "sonnet",
             "sonnet-extended",
         ]
-        assert parsed["providers"]["antigravity"]["models"] == ["gemini-3-flash"]
+        assert parsed["providers"]["antigravity"]["models"] == ["gemini-3.5-flash"]
 
     def test_returns_false_when_models_unchanged(self, tmp_path: Path) -> None:
         config = tmp_path / "config.toml"

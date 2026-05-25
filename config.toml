@@ -11,7 +11,7 @@ path = ""
 #   curl -fsSL https://antigravity.google/cli/install.sh | bash
 enabled = true
 executable = ""
-models = ["gemini-3-flash", "gemini-3-pro"]
+models = ["gemini-3.5-flash", "gemini-3.1-pro"]
 default_options = { extra_args = [] }
 # Desktop app manages timeouts via agent_timeout_ms; 0 = no sidecar timeout.
 cli_timeout = 0
@@ -22,8 +22,6 @@ idle_timeout = 0
 enabled = true
 executable = ""
 models = [
-  "gpt-5.2",
-  "gpt-5.3-codex",
   "gpt-5.4",
   "gpt-5.4-mini",
   "gpt-5.5",

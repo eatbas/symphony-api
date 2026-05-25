@@ -28,7 +28,7 @@ class TestStreamingRequest:
 
     def test_antigravity_streaming_request(self, console_page: Page, tmp_path):
         console_page.select_option("#provider", "antigravity")
-        console_page.select_option("#model", "gemini-3-flash")
+        console_page.select_option("#model", "gemini-3.5-flash")
         console_page.fill("#workspace_path", str(tmp_path.resolve()))
         console_page.fill("#prompt", "hello antigravity")
         console_page.click("#send-button")
@@ -60,7 +60,7 @@ class TestStreamingRequest:
 
     def test_codex_secondary_streaming_request(self, console_page: Page, tmp_path):
         console_page.select_option("#provider", "codex")
-        console_page.select_option("#model", "gpt-5.2")
+        console_page.select_option("#model", "gpt-5.4-mini")
         console_page.fill("#workspace_path", str(tmp_path.resolve()))
         console_page.fill("#prompt", "hello codex mini")
         console_page.click("#send-button")

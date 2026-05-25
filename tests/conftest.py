@@ -58,13 +58,13 @@ score_dir = "{escaped_score_dir}"
 [providers.antigravity]
 enabled = true
 executable = "{escaped_providers['antigravity']}"
-models = ["gemini-3-flash", "gemini-3-pro"]
+models = ["gemini-3.5-flash", "gemini-3.1-pro"]
 default_options = {{ extra_args = [] }}
 
 [providers.codex]
 enabled = true
 executable = "{escaped_providers['codex']}"
-models = ["gpt-5.4", "gpt-5.2"]
+models = ["gpt-5.4", "gpt-5.4-mini"]
 default_options = {{ extra_args = [] }}
 
 [providers.claude]
