@@ -33,19 +33,6 @@ const PROVIDERS: Provider[] = [
     resume: true,
   },
   {
-    name: "Copilot",
-    cli: "copilot",
-    models: [
-      "claude-sonnet-4.6",
-      "claude-haiku-4.5",
-      "claude-opus-4.6",
-      "gpt-5.4",
-      "gpt-5.3-codex",
-      "gpt-5.4-mini",
-    ],
-    resume: true,
-  },
-  {
     name: "OpenCode",
     cli: "opencode",
     models: ["glm-5", "glm-5.1", "glm-5-turbo", "glm-4.7"],
@@ -62,7 +49,7 @@ export function Providers() {
             Instruments
           </span>
           <h2 className="mt-4 text-4xl font-bold tracking-tight text-black sm:text-5xl">
-            Six providers, one podium
+            Five providers, one podium
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-neutral-500">
             Each provider is a first-class musician with its own CLI adapter,

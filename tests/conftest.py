@@ -79,12 +79,6 @@ executable = "{escaped_providers['kimi']}"
 models = ["kimi-code/kimi-for-coding"]
 default_options = {{ extra_args = [] }}
 
-[providers.copilot]
-enabled = true
-executable = "{escaped_providers['copilot']}"
-models = ["claude-sonnet-4.6", "grok-code-fast-1"]
-default_options = {{ extra_args = [] }}
-
 [providers.opencode]
 enabled = true
 executable = "{escaped_providers['opencode']}"

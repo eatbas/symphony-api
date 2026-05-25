@@ -21,7 +21,7 @@ from pathlib import Path
 
 from ..models import InstrumentName
 from ..shells import windows_subprocess_kwargs
-from .filters import filter_codex, filter_copilot, filter_opencode
+from .filters import filter_codex, filter_opencode
 
 logger = logging.getLogger("symphony.discovery")
 
@@ -196,40 +196,6 @@ def _discover_codex() -> list[str] | None:
 
 
 # ---------------------------------------------------------------------------
-# Copilot — parse @github/copilot bundle for model catalogue
-# ---------------------------------------------------------------------------
-
-# Pattern: current-generation models that the CLI validates against.
-_COPILOT_MODEL_RE = re.compile(
-    r"^(claude-(sonnet|haiku|opus)-[0-9][a-z0-9._-]*"
-    r"|gpt-[45][a-z0-9._-]*"
-    r"|gemini-[0-9][a-z0-9._-]*"
-    r"|grok-[a-z0-9._-]+)$",
-)
-
-
-def _discover_copilot() -> list[str] | None:
-    """Extract model names from the locally installed Copilot CLI.
-
-    The ``@github/copilot`` npm package contains a model validation
-    list that the ``--model`` flag is checked against.  We extract
-    current-generation model identifiers from the bundle.
-    """
-    pkg = _npm_package_dir("copilot", "@github/copilot")
-    if not pkg:
-        return None
-
-    app_js = pkg / "app.js"
-    if not app_js.exists():
-        return None
-
-    # Extract all quoted strings that look like model IDs.
-    raw = _grep_file(app_js, r'"([a-z]+-[a-z0-9._-]+)"')
-    models = sorted({m for m in raw if _COPILOT_MODEL_RE.match(m)})
-    return filter_copilot(models) if models else None
-
-
-# ---------------------------------------------------------------------------
 # Kimi — parse ~/.kimi/config.toml for configured models
 # ---------------------------------------------------------------------------
 
@@ -296,7 +262,6 @@ DISCOVERERS: dict[InstrumentName, callable] = {
     InstrumentName.CLAUDE: _discover_claude,
     InstrumentName.ANTIGRAVITY: _discover_antigravity,
     InstrumentName.CODEX: _discover_codex,
-    InstrumentName.COPILOT: _discover_copilot,
     InstrumentName.KIMI: _discover_kimi,
     InstrumentName.OPENCODE: _discover_opencode,
 }

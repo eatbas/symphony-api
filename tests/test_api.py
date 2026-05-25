@@ -37,19 +37,19 @@ def test_health_and_provider_endpoints(config_path):
         health = client.get("/health")
         assert health.status_code == 200
         payload = health.json()
-        assert payload["musician_count"] == 11
+        assert payload["musician_count"] == 9
 
         providers = client.get("/v1/providers")
         assert providers.status_code == 200
-        assert len(providers.json()) == 6
+        assert len(providers.json()) == 5
 
         all_providers = client.get("/v1/providers?all=true")
         assert all_providers.status_code == 200
-        assert len(all_providers.json()) == 6
+        assert len(all_providers.json()) == 5
 
         musicians = client.get("/v1/musicians")
         assert musicians.status_code == 200
-        assert len(musicians.json()) == 11
+        assert len(musicians.json()) == 9
 
 
 def test_chat_json_and_streaming(config_path, tmp_path):
@@ -88,22 +88,6 @@ def test_chat_json_and_streaming(config_path, tmp_path):
         assert terminal["final_text"] == "codex:hello"
 
         assert not list(tmp_path.rglob("*.sqlite"))
-
-
-def test_chat_copilot_json(config_path, tmp_path):
-    app = create_app()
-    with TestClient(app) as client:
-        body = {
-            "provider": "copilot",
-            "model": "claude-sonnet-4.6",
-            "workspace_path": str(tmp_path.resolve()),
-            "mode": "new",
-            "prompt": "hello",
-        }
-        accepted = submit_score(client, body)
-        payload = wait_for_terminal_score(client, accepted["score_id"])
-        assert payload["final_text"] == "copilot:hello"
-        assert payload["provider_session_ref"]
 
 
 def test_chat_opencode_json(config_path, tmp_path):
@@ -223,7 +207,6 @@ def test_musicians_endpoint_reflects_musician_state(config_path, tmp_path):
         assert "antigravity" in providers_seen
         assert "codex" in providers_seen
         assert "kimi" in providers_seen
-        assert "copilot" in providers_seen
         assert "opencode" in providers_seen
         assert all(m["ready"] for m in musicians)
         assert all(not m["busy"] for m in musicians)
@@ -247,10 +230,10 @@ def test_models_endpoint_returns_all_models(config_path):
     app = create_app()
     with TestClient(app) as client:
         models = client.get("/v1/models").json()
-        assert len(models) == 11  # 2 antigravity + 2 codex + 2 claude + 1 kimi + 2 copilot + 2 opencode
+        assert len(models) == 9  # 2 antigravity + 2 codex + 2 claude + 1 kimi + 2 opencode
         providers_seen = {m["provider"] for m in models}
         assert "claude" in providers_seen
-        assert "copilot" in providers_seen
+        assert "antigravity" in providers_seen
         for m in models:
             assert "model" in m
             assert "ready" in m

@@ -31,7 +31,7 @@ logger = logging.getLogger("symphony.service")
 UI_STATIC_DIR = Path(__file__).with_name("ui") / "static"
 
 API_DESCRIPTION = """\
-Symphony API — a coordinated collective of AI coding CLIs (Antigravity, Codex, Claude, Kimi, Copilot, OpenCode).
+Symphony API — a coordinated collective of AI coding CLIs (Antigravity, Codex, Claude, Kimi, OpenCode).
 
 The API maintains persistent musician pools for configured instrument/model pairs,
 enabling low-latency prompt execution without cold-start overhead.

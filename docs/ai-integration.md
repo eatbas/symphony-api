@@ -4,7 +4,7 @@ This file is written for AI agents and automation systems that need to call Symp
 
 ## What Symphony Does
 
-Symphony runs prompts through configured AI CLI providers such as Claude, Codex, Antigravity, Kimi, Copilot, and OpenCode. Each submitted prompt becomes a score. A score is durable and can be tracked by `score_id`.
+Symphony runs prompts through configured AI CLI providers such as Claude, Codex, Antigravity, Kimi, and OpenCode. Each submitted prompt becomes a score. A score is durable and can be tracked by `score_id`.
 
 ## Required Behaviour
 

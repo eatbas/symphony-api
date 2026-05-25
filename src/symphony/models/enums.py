@@ -10,7 +10,6 @@ class InstrumentName(StrEnum):
     CODEX = "codex"
     CLAUDE = "claude"
     KIMI = "kimi"
-    COPILOT = "copilot"
     OPENCODE = "opencode"
 
 

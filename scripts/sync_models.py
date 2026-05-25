@@ -32,13 +32,12 @@ TEST_MUSICIANS_PATH = SYMPHONY / "tests" / "test_musicians.py"
 TEST_LOAD_PATH = SYMPHONY / "tests" / "ui_e2e" / "test_load.py"
 TESTLAB_PATH = SYMPHONY / "src" / "symphony" / "routes" / "testlab.py"
 
-PROVIDER_ORDER = ["antigravity", "codex", "claude", "kimi", "copilot", "opencode"]
+PROVIDER_ORDER = ["antigravity", "codex", "claude", "kimi", "opencode"]
 PROVIDER_CLI = {
     "antigravity": "agy",
     "codex": "codex",
     "claude": "claude",
     "kimi": "kimi",
-    "copilot": "copilot",
     "opencode": "opencode",
 }
 
