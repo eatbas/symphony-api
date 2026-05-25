@@ -66,6 +66,16 @@ class TestPackageRegistry:
         assert info.package == "kimi-cli"
         assert info.update_cmd == ""
 
+    def test_antigravity_reinvokes_install_script(self):
+        info = PACKAGE_REGISTRY["agy"]
+        assert info.manager == "native"
+        assert info.package == "agy"
+        assert info.provider == InstrumentName.ANTIGRAVITY
+        # No `agy update` subcommand exists upstream; re-running the
+        # curl installer is the sanctioned upgrade path.
+        assert "antigravity.google/cli/install.sh" in info.update_cmd
+        assert info.update_cmd.startswith("bash -c ")
+
 
 @pytest.fixture()
 def updater(loaded_config):

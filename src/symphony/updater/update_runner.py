@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import shlex
 from typing import Awaitable, Callable
 
 from ..orchestra import Orchestra
@@ -46,7 +47,7 @@ async def _run_via_subprocess(
     pkg_info: CLIPackageInfo, method: str, run_cmd: RunCmd
 ) -> bool:
     if method == "native":
-        parts = pkg_info.update_cmd.split()
+        parts = shlex.split(pkg_info.update_cmd)
         code, output = await run_cmd(*parts, timeout=120)
     elif method == "npm":
         code, output = await run_cmd(
