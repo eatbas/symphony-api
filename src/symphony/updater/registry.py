@@ -21,10 +21,16 @@ class CLIPackageInfo:
 PACKAGE_REGISTRY: dict[str, CLIPackageInfo] = {
     "claude": CLIPackageInfo(InstrumentName.CLAUDE, "native", "@anthropic-ai/claude-code", "claude update"),
     "codex": CLIPackageInfo(InstrumentName.CODEX, "npm", "@openai/codex"),
-    "gemini": CLIPackageInfo(InstrumentName.GEMINI, "npm", "@google/gemini-cli"),
+    "agy": CLIPackageInfo(
+        InstrumentName.ANTIGRAVITY,
+        "native",
+        "agy",
+        # Antigravity has no `agy update` subcommand and no package-manager
+        # equivalent. The sanctioned upgrade path is re-running the install
+        # script, which is idempotent and refreshes ~/.local/bin/agy.
+        "bash -c 'curl -fsSL https://antigravity.google/cli/install.sh | bash'",
+    ),
     "kimi": CLIPackageInfo(InstrumentName.KIMI, "uv", "kimi-cli"),
-    "copilot": CLIPackageInfo(InstrumentName.COPILOT, "native", "@github/copilot", "copilot update"),
-    "opencode": CLIPackageInfo(InstrumentName.OPENCODE, "native", "opencode-ai", "opencode upgrade"),
 }
 
 

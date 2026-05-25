@@ -24,7 +24,7 @@ class TestParseVersion:
         assert _parse_version("claude v1.0.16") == "1.0.16"
 
     def test_at_version(self):
-        assert _parse_version("@google/gemini-cli@0.3.1") == "0.3.1"
+        assert _parse_version("@anthropic-ai/claude-code@0.3.1") == "0.3.1"
 
     def test_no_match(self):
         assert _parse_version("no version here") is None
@@ -33,7 +33,7 @@ class TestParseVersion:
         assert _parse_version("") is None
 
     def test_multiline_output(self):
-        output = "Gemini CLI\nVersion: 0.5.2\nNode.js v20.0.0"
+        output = "Antigravity CLI\nVersion: 0.5.2\nNode.js v20.0.0"
         assert _parse_version(output) == "0.5.2"
 
 
@@ -51,16 +51,8 @@ class TestPackageRegistry:
     def test_all_providers_registered(self):
         assert "claude" in PACKAGE_REGISTRY
         assert "codex" in PACKAGE_REGISTRY
-        assert "gemini" in PACKAGE_REGISTRY
+        assert "agy" in PACKAGE_REGISTRY
         assert "kimi" in PACKAGE_REGISTRY
-        assert "copilot" in PACKAGE_REGISTRY
-        assert "opencode" in PACKAGE_REGISTRY
-
-    def test_copilot_is_native(self):
-        info = PACKAGE_REGISTRY["copilot"]
-        assert info.manager == "native"
-        assert info.package == "@github/copilot"
-        assert info.update_cmd == "copilot update"
 
     def test_claude_is_native(self):
         info = PACKAGE_REGISTRY["claude"]
@@ -74,12 +66,15 @@ class TestPackageRegistry:
         assert info.package == "kimi-cli"
         assert info.update_cmd == ""
 
-    def test_opencode_is_native(self):
-        info = PACKAGE_REGISTRY["opencode"]
+    def test_antigravity_reinvokes_install_script(self):
+        info = PACKAGE_REGISTRY["agy"]
         assert info.manager == "native"
-        assert info.package == "opencode-ai"
-        assert info.update_cmd == "opencode upgrade"
-        assert info.provider == InstrumentName.OPENCODE
+        assert info.package == "agy"
+        assert info.provider == InstrumentName.ANTIGRAVITY
+        # No `agy update` subcommand exists upstream; re-running the
+        # curl installer is the sanctioned upgrade path.
+        assert "antigravity.google/cli/install.sh" in info.update_cmd
+        assert info.update_cmd.startswith("bash -c ")
 
 
 @pytest.fixture()
@@ -200,7 +195,7 @@ class TestProbeVersionsOnly:
                 mock_curr.return_value = "1.0.0"
                 mock_latest.return_value = "1.0.0"
                 results = await checker.probe_versions_only()
-                assert len(results) == 6
+                assert len(results) == 4
                 assert all(not status.needs_update for status in results)
         finally:
             await manager.stop()
@@ -227,7 +222,7 @@ class TestProbeVersionsOnly:
                 mock_curr.return_value = "1.0.0"
                 mock_latest.return_value = "1.1.0"
                 results = await checker.probe_versions_only()
-                assert len(results) == 6
+                assert len(results) == 4
                 assert all(status.needs_update for status in results)
                 mock_update.assert_not_called()
         finally:
@@ -250,7 +245,7 @@ class TestProbeVersionsOnly:
                 mock_curr.return_value = "1.0.0"
                 mock_latest.return_value = "1.0.0"
                 await checker.probe_versions_only()
-                assert len(checker.last_results) == 6
+                assert len(checker.last_results) == 4
         finally:
             await manager.stop()
 
@@ -281,7 +276,7 @@ class TestAPIEndpoints:
                 response = client.get("/v1/cli-versions")
                 assert response.status_code == 200
                 data = response.json()
-                assert len(data) == 6
+                assert len(data) == 4
                 assert mock_curr.await_count >= 1
                 assert mock_latest.await_count >= 1
                 # Lazy GET must never block on installs.
@@ -334,7 +329,7 @@ class TestAPIEndpoints:
                 # Second call should hit the cache.
                 response = client.get("/v1/cli-versions")
                 assert response.status_code == 200
-                assert len(response.json()) == 6
+                assert len(response.json()) == 4
                 assert mock_curr.await_count == prior_count
 
     def test_cli_versions_check_returns_results(self, config_path):
@@ -351,7 +346,7 @@ class TestAPIEndpoints:
                 response = client.post("/v1/cli-versions/check")
                 assert response.status_code == 200
                 data = response.json()
-                assert len(data) == 6
+                assert len(data) == 4
                 for item in data:
                     assert "provider" in item
                     assert "current_version" in item

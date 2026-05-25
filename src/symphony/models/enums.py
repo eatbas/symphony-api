@@ -6,12 +6,10 @@ from enum import StrEnum
 class InstrumentName(StrEnum):
     """Supported AI CLI instrument identifiers."""
 
-    GEMINI = "gemini"
+    ANTIGRAVITY = "antigravity"
     CODEX = "codex"
     CLAUDE = "claude"
     KIMI = "kimi"
-    COPILOT = "copilot"
-    OPENCODE = "opencode"
 
 
 class ChatMode(StrEnum):

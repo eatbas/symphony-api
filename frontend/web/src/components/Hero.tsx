@@ -92,12 +92,10 @@ export function Hero() {
           className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-neutral-500 sm:text-xl"
         >
           One unified API that conducts{" "}
-          <strong className="text-black">Gemini</strong>,{" "}
+          <strong className="text-black">Antigravity</strong>,{" "}
           <strong className="text-black">Codex</strong>,{" "}
-          <strong className="text-black">Claude</strong>,{" "}
-          <strong className="text-black">Kimi</strong>,{" "}
-          <strong className="text-black">Copilot</strong>, and{" "}
-          <strong className="text-black">OpenCode</strong>{" "}
+          <strong className="text-black">Claude</strong>, and{" "}
+          <strong className="text-black">Kimi</strong>{" "}
           as warm, pre-spawned CLI musicians — ready to play on demand.
         </motion.p>
 

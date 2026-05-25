@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import shlex
 from typing import Awaitable, Callable
 
 from ..orchestra import Orchestra
@@ -15,11 +16,10 @@ RunCmd = Callable[..., Awaitable[tuple[int, str]]]
 def _resolve_method(pkg_info: CLIPackageInfo, executable: str | None) -> str:
     """Pick the update method for *pkg_info*.
 
-    CLIs that ship their own update command (``claude update``,
-    ``opencode upgrade``, etc.) always use it — it works regardless of
-    how the CLI was installed (npm, standalone, brew, …). Only fall
-    back to package-manager detection for CLIs without a native
-    command."""
+    CLIs that ship their own update command (e.g. ``claude update``)
+    always use it — it works regardless of how the CLI was installed
+    (npm, standalone, brew, …). Only fall back to package-manager
+    detection for CLIs without a native command."""
     if pkg_info.update_cmd:
         return "native"
     method = pkg_info.manager
@@ -47,7 +47,7 @@ async def _run_via_subprocess(
     pkg_info: CLIPackageInfo, method: str, run_cmd: RunCmd
 ) -> bool:
     if method == "native":
-        parts = pkg_info.update_cmd.split()
+        parts = shlex.split(pkg_info.update_cmd)
         code, output = await run_cmd(*parts, timeout=120)
     elif method == "npm":
         code, output = await run_cmd(

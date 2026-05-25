@@ -32,14 +32,12 @@ TEST_MUSICIANS_PATH = SYMPHONY / "tests" / "test_musicians.py"
 TEST_LOAD_PATH = SYMPHONY / "tests" / "ui_e2e" / "test_load.py"
 TESTLAB_PATH = SYMPHONY / "src" / "symphony" / "routes" / "testlab.py"
 
-PROVIDER_ORDER = ["gemini", "codex", "claude", "kimi", "copilot", "opencode"]
+PROVIDER_ORDER = ["antigravity", "codex", "claude", "kimi"]
 PROVIDER_CLI = {
-    "gemini": "gemini",
+    "antigravity": "agy",
     "codex": "codex",
     "claude": "claude",
     "kimi": "kimi",
-    "copilot": "copilot",
-    "opencode": "opencode",
 }
 
 # Max models per provider in the test config (keeps tests fast).
@@ -128,10 +126,9 @@ def sync_constants(models_by_provider: dict[str, list[str]], *, apply: bool) -> 
         all_models.update(models)
 
     # Generate entries for missing models.
-    # Also check for opencode/-prefixed variants (legacy settings format).
     added: list[str] = []
     for model in sorted(all_models):
-        if model not in existing and f"opencode/{model}" not in existing:
+        if model not in existing:
             label = generate_label(model)
             existing[model] = label
             added.append(f'    "{model}": "{label}"')
@@ -176,8 +173,6 @@ def sync_readme(models_by_provider: dict[str, list[str]], *, apply: bool) -> Non
     for provider in PROVIDER_ORDER:
         models = models_by_provider.get(provider, [])
         display = provider.capitalize()
-        if provider == "opencode":
-            display = "OpenCode"
         cli = PROVIDER_CLI[provider]
         model_str = ", ".join(f"`{m}`" for m in models)
         rows.append(f"| **{display}** | `{cli}` | {model_str} | Yes |\n")

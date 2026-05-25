@@ -26,11 +26,11 @@ class TestStreamingRequest:
         count = int(console_page.locator("#event-count").inner_text())
         assert count >= 3
 
-    def test_gemini_streaming_request(self, console_page: Page, tmp_path):
-        console_page.select_option("#provider", "gemini")
-        console_page.select_option("#model", "gemini-3-flash-preview")
+    def test_antigravity_streaming_request(self, console_page: Page, tmp_path):
+        console_page.select_option("#provider", "antigravity")
+        console_page.select_option("#model", "gemini-3.5-flash")
         console_page.fill("#workspace_path", str(tmp_path.resolve()))
-        console_page.fill("#prompt", "hello gemini")
+        console_page.fill("#prompt", "hello antigravity")
         console_page.click("#send-button")
 
         console_page.wait_for_function(
@@ -40,7 +40,7 @@ class TestStreamingRequest:
 
         text = console_page.locator("#console").inner_text()
         assert "[terminal]" in text
-        assert "gemini:hello gemini" in text
+        assert "antigravity:hello antigravity" in text
 
     def test_codex_streaming_request(self, console_page: Page, tmp_path):
         console_page.select_option("#provider", "codex")
@@ -60,7 +60,7 @@ class TestStreamingRequest:
 
     def test_codex_secondary_streaming_request(self, console_page: Page, tmp_path):
         console_page.select_option("#provider", "codex")
-        console_page.select_option("#model", "gpt-5.2")
+        console_page.select_option("#model", "gpt-5.4-mini")
         console_page.fill("#workspace_path", str(tmp_path.resolve()))
         console_page.fill("#prompt", "hello codex mini")
         console_page.click("#send-button")

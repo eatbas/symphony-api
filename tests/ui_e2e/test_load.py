@@ -18,11 +18,11 @@ class TestPageLoad:
 
     def test_musician_count(self, console_page: Page):
         count = console_page.locator("#musician-count")
-        expect(count).to_have_text("11")
+        expect(count).to_have_text("7")
 
     def test_all_musicians_shown(self, console_page: Page):
         chips = console_page.locator(".musician-chip")
-        expect(chips).to_have_count(11)
+        expect(chips).to_have_count(7)
 
     def test_all_musicians_ready(self, console_page: Page):
         chips = console_page.locator(".musician-chip")
@@ -34,7 +34,7 @@ class TestProviderModelDropdowns:
     def test_provider_options_exist(self, console_page: Page):
         options = console_page.locator("#provider option")
         providers = [options.nth(i).get_attribute("value") for i in range(options.count())]
-        assert "gemini" in providers
+        assert "antigravity" in providers
         assert "claude" in providers
         assert "codex" in providers
         assert "kimi" in providers

@@ -16,16 +16,12 @@ import json
 import logging
 import re
 import shutil
-import subprocess
 from pathlib import Path
 
 from ..models import InstrumentName
-from ..shells import windows_subprocess_kwargs
-from .filters import filter_codex, filter_copilot, filter_gemini, filter_opencode
+from .filters import filter_codex
 
 logger = logging.getLogger("symphony.discovery")
-
-_TIMEOUT = 15
 
 _DISCOVERY_CACHE_FILE = Path.home() / ".maestro" / "symphony" / ".discovery_cache.json"
 
@@ -155,63 +151,17 @@ def _discover_claude() -> list[str] | None:
 
 
 # ---------------------------------------------------------------------------
-# Gemini — parse @google/gemini-cli bundle for model names
+# Antigravity — no programmatic discovery yet
 # ---------------------------------------------------------------------------
 
-# Gemini model names: version + variant (pro/flash/ultra), optional -preview.
-# Excludes bare versions ("gemini-3"), internal variants (-base, -lite,
-# -customtools, -image), and dated snapshots.
-_GEMINI_MODEL_RE = re.compile(
-    r"^gemini-\d[\d.]*-(pro|flash|ultra)(-preview)?$",
-)
 
+def _discover_antigravity() -> list[str] | None:
+    """Antigravity does not expose a queryable model catalogue yet.
 
-def _discover_gemini() -> list[str] | None:
-    """Extract model names from the locally installed Gemini CLI.
-
-    Prefers the CLI's own ``VALID_GEMINI_MODELS`` set so we only surface
-    model IDs the installed Gemini CLI explicitly recognises.
+    Models are configured in ``~/.gemini/antigravity-cli/settings.json``
+    (undocumented format) and there is no ``--model`` CLI flag. Return
+    ``None`` so the caller keeps the static models from config.toml.
     """
-    pkg = _npm_package_dir("gemini", "@google/gemini-cli")
-    if not pkg:
-        return None
-
-    bundle_dir = pkg / "bundle"
-    if not bundle_dir.is_dir():
-        return None
-
-    # Fast path: skip bundle scanning if the directory hasn't changed.
-    cache = _read_discovery_cache()
-    bundle_mtime = _dir_mtime(bundle_dir)
-    gemini_cache = cache.get("gemini", {})
-    if gemini_cache.get("mtime") == bundle_mtime and gemini_cache.get("models"):
-        return gemini_cache["models"]
-
-    raw_models: set[str] = set()
-    for js_file in bundle_dir.glob("*.js"):
-        text = js_file.read_text(encoding="utf-8", errors="replace")
-        valid_match = re.search(r"VALID_GEMINI_MODELS\s*=.*?new Set\(\[(.*?)\]\)", text, re.DOTALL)
-        if valid_match:
-            models = set(re.findall(r'"(gemini-[a-z0-9._-]+)"', valid_match.group(1)))
-            for token in re.findall(r"\b[A-Z][A-Z0-9_]+\b", valid_match.group(1)):
-                token_match = re.search(rf"\b{token}\b\s*=\s*\"([^\"]+)\"", text)
-                if token_match:
-                    models.add(token_match.group(1))
-            models = {name for name in models if _GEMINI_MODEL_RE.match(name)}
-            if models:
-                result = filter_gemini(sorted(models))
-                cache["gemini"] = {"mtime": bundle_mtime, "models": result}
-                _write_discovery_cache(cache)
-                return result
-        for name in re.findall(r'"(gemini-\d[a-z0-9._-]*)"', text):
-            if _GEMINI_MODEL_RE.match(name):
-                raw_models.add(name)
-
-    if raw_models:
-        result = filter_gemini(sorted(raw_models))
-        cache["gemini"] = {"mtime": bundle_mtime, "models": result}
-        _write_discovery_cache(cache)
-        return result
     return None
 
 
@@ -242,40 +192,6 @@ def _discover_codex() -> list[str] | None:
 
 
 # ---------------------------------------------------------------------------
-# Copilot — parse @github/copilot bundle for model catalogue
-# ---------------------------------------------------------------------------
-
-# Pattern: current-generation models that the CLI validates against.
-_COPILOT_MODEL_RE = re.compile(
-    r"^(claude-(sonnet|haiku|opus)-[0-9][a-z0-9._-]*"
-    r"|gpt-[45][a-z0-9._-]*"
-    r"|gemini-[0-9][a-z0-9._-]*"
-    r"|grok-[a-z0-9._-]+)$",
-)
-
-
-def _discover_copilot() -> list[str] | None:
-    """Extract model names from the locally installed Copilot CLI.
-
-    The ``@github/copilot`` npm package contains a model validation
-    list that the ``--model`` flag is checked against.  We extract
-    current-generation model identifiers from the bundle.
-    """
-    pkg = _npm_package_dir("copilot", "@github/copilot")
-    if not pkg:
-        return None
-
-    app_js = pkg / "app.js"
-    if not app_js.exists():
-        return None
-
-    # Extract all quoted strings that look like model IDs.
-    raw = _grep_file(app_js, r'"([a-z]+-[a-z0-9._-]+)"')
-    models = sorted({m for m in raw if _COPILOT_MODEL_RE.match(m)})
-    return filter_copilot(models) if models else None
-
-
-# ---------------------------------------------------------------------------
 # Kimi — parse ~/.kimi/config.toml for configured models
 # ---------------------------------------------------------------------------
 
@@ -299,50 +215,12 @@ def _discover_kimi() -> list[str] | None:
 
 
 # ---------------------------------------------------------------------------
-# OpenCode — CLI ``models`` subcommand
-# ---------------------------------------------------------------------------
-
-
-def _discover_opencode() -> list[str] | None:
-    """Run ``opencode models`` and return zai-coding-plan (GLM) model IDs.
-
-    Only includes ``zai-coding-plan/`` models.  The prefix is stripped
-    because the adapter re-adds it at runtime.
-    """
-    exe = shutil.which("opencode")
-    if exe is None:
-        return None
-
-    try:
-        result = subprocess.run(
-            [exe, "models"],
-            capture_output=True,
-            text=True,
-            timeout=_TIMEOUT,
-            **windows_subprocess_kwargs(),
-        )
-    except (subprocess.TimeoutExpired, OSError) as exc:
-        logger.warning("opencode models failed: %s", exc)
-        return None
-
-    models: list[str] = []
-    for line in result.stdout.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("zai-coding-plan/"):
-            models.append(stripped.removeprefix("zai-coding-plan/"))
-
-    return filter_opencode(models) if models else None
-
-
-# ---------------------------------------------------------------------------
 # Registry — provider → discovery function
 # ---------------------------------------------------------------------------
 
 DISCOVERERS: dict[InstrumentName, callable] = {
     InstrumentName.CLAUDE: _discover_claude,
-    InstrumentName.GEMINI: _discover_gemini,
+    InstrumentName.ANTIGRAVITY: _discover_antigravity,
     InstrumentName.CODEX: _discover_codex,
-    InstrumentName.COPILOT: _discover_copilot,
     InstrumentName.KIMI: _discover_kimi,
-    InstrumentName.OPENCODE: _discover_opencode,
 }

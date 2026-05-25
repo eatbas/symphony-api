@@ -55,16 +55,16 @@ path = ""
 [storage]
 score_dir = "{escaped_score_dir}"
 
-[providers.gemini]
+[providers.antigravity]
 enabled = true
-executable = "{escaped_providers['gemini']}"
-models = ["gemini-3-flash-preview", "gemini-3.1-pro-preview"]
+executable = "{escaped_providers['antigravity']}"
+models = ["gemini-3.5-flash", "gemini-3.1-pro"]
 default_options = {{ extra_args = [] }}
 
 [providers.codex]
 enabled = true
 executable = "{escaped_providers['codex']}"
-models = ["gpt-5.4", "gpt-5.2"]
+models = ["gpt-5.4", "gpt-5.4-mini"]
 default_options = {{ extra_args = [] }}
 
 [providers.claude]
@@ -77,18 +77,6 @@ default_options = {{ extra_args = [] }}
 enabled = true
 executable = "{escaped_providers['kimi']}"
 models = ["kimi-code/kimi-for-coding"]
-default_options = {{ extra_args = [] }}
-
-[providers.copilot]
-enabled = true
-executable = "{escaped_providers['copilot']}"
-models = ["claude-sonnet-4.6", "grok-code-fast-1"]
-default_options = {{ extra_args = [] }}
-
-[providers.opencode]
-enabled = true
-executable = "{escaped_providers['opencode']}"
-models = ["glm-4.5", "glm-5.1"]
 default_options = {{ extra_args = [] }}
 
 [updater]

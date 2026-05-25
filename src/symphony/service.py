@@ -31,7 +31,7 @@ logger = logging.getLogger("symphony.service")
 UI_STATIC_DIR = Path(__file__).with_name("ui") / "static"
 
 API_DESCRIPTION = """\
-Symphony API — a coordinated collective of AI coding CLIs (Gemini, Codex, Claude, Kimi, Copilot, OpenCode).
+Symphony API — a coordinated collective of AI coding CLIs (Antigravity, Codex, Claude, Kimi).
 
 The API maintains persistent musician pools for configured instrument/model pairs,
 enabling low-latency prompt execution without cold-start overhead.
@@ -47,7 +47,7 @@ Running scores can be stopped via `POST /v1/chat/{score_id}/stop`.
 |-----|-----------|-------------|
 | `extra_args` | All | Raw CLI flags appended to the command. |
 | `thinking_level` | Codex, supported Claude models | Thinking level exposed by `/v1/models`. |
-| `thinking_mode` | Kimi, OpenCode | Toggle native thinking mode. |
+| `thinking_mode` | Kimi | Toggle native thinking mode. |
 | `max_turns` | Claude | Maximum autonomous tool-use turns. Omit for CLI default. |
 """
 

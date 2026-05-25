@@ -44,29 +44,23 @@ def emit(line: str):
     sys.stdout.flush()
 
 
-# Gemini, kimi, and copilot pass the prompt via a flag; claude and codex use a positional arg.
-if provider in ("gemini", "copilot"):
+# Antigravity passes the prompt via -p; kimi via --prompt; claude and codex use a positional arg.
+if provider == "antigravity":
     prompt = read_flag("-p") or last_non_flag(args)
-elif provider in ("kimi",):
+elif provider == "kimi":
     prompt = read_flag("--prompt") or last_non_flag(args)
 else:
     prompt = last_non_flag(args)
 
 model = read_flag("-m") or read_flag("--model") or "default"
-if provider == "gemini":
-    if has_flag("--list-sessions"):
-        emit("Available sessions for this project (2):")
-        emit("  1. first session (1 hour ago) [gemini-session-new]")
-        emit("  2. second session (2 hours ago) [gemini-session-old]")
-        sys.exit(0)
-    resume_index = read_flag("--resume")
-    if resume_index:
-        index_to_uuid = {"1": "gemini-session-new", "2": "gemini-session-old"}
-        session_id = index_to_uuid.get(resume_index, f"gemini-resumed-{resume_index}")
-    else:
-        session_id = "gemini-session-new"
+if provider == "antigravity":
+    # Antigravity has no --model flag and `-p` does not emit a
+    # conversation ID yet, so the fake CLI mirrors that contract: it
+    # accepts -p / --output-format and produces a synthetic session_id
+    # purely so the parser has something to attach to.
+    session_id = "antigravity-session-new"
     emit(f'{{"type":"init","session_id":"{session_id}","model":"{model}"}}')
-    emit(f'{{"type":"message","role":"assistant","content":"gemini:{prompt}","delta":true}}')
+    emit(f'{{"type":"message","role":"assistant","content":"antigravity:{prompt}","delta":true}}')
     emit('{"type":"result","status":"success"}')
 elif provider == "claude":
     session_id = read_flag("--resume") or read_flag("--session-id") or "claude-session-new"
@@ -100,16 +94,6 @@ elif provider == "codex":
     emit(f'{{"type":"thread.started","thread_id":"{thread_id}"}}')
     emit('{"type":"item.completed","item":{"type":"agent_message","text":"codex:' + prompt.replace('"', '\\"') + '"}}')
     emit('{"type":"turn.completed","usage":{"output_tokens":1}}')
-elif provider == "copilot":
-    session_id = read_flag("--resume") or "copilot-session-new"
-    emit(f'{{"type":"assistant.message","data":{{"content":"copilot:{prompt.replace(chr(34), chr(92)+chr(34))}","messageId":"msg-1"}}}}')
-    emit(f'{{"type":"result","sessionId":"{session_id}","exitCode":0}}')
-elif provider == "opencode":
-    opencode_args = args[1:] if args and args[0] == "run" else args
-    prompt = last_non_flag(opencode_args)
-    session_id = read_flag("--session") or "ses_opencode_new"
-    emit(f'{{"type":"init","sessionID":"{session_id}"}}')
-    emit(f'{{"type":"text","sessionID":"{session_id}","part":{{"text":"opencode:{prompt.replace(chr(34), chr(92)+chr(34))}"}}}}')
 else:
     emit('{"error":"unknown provider"}')
     sys.exit(1)

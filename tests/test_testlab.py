@@ -41,8 +41,8 @@ def test_verify_keyword_miss(config_path, tmp_path):
         resp = client.post("/v1/test/verify", json={
             "items": [
                 {
-                    "provider": "gemini",
-                    "model": "gemini-3-flash-preview",
+                    "provider": "antigravity",
+                    "model": "gemini-3.5-flash",
                     "new_exit_code": 0,
                     "resume_text": "You manage PF and ATM.",
                     "resume_exit_code": 0,
@@ -98,27 +98,6 @@ def test_verify_resume_fail(config_path, tmp_path):
         assert r["new_status"] == "OK"
         assert r["resume_status"] == "FAIL"
         assert r["grade"] == "FAIL"
-
-
-def test_verify_copilot_pass(config_path, tmp_path):
-    app = create_app()
-    with TestClient(app) as client:
-        resp = client.post("/v1/test/verify", json={
-            "items": [
-                {
-                    "provider": "copilot",
-                    "model": "claude-sonnet-4.6",
-                    "new_exit_code": 0,
-                    "resume_text": "You manage PF, ATM, and Transit systems.",
-                    "resume_exit_code": 0,
-                    "keywords": ["PF", "ATM", "Transit"],
-                },
-            ],
-        })
-        assert resp.status_code == 200
-        r = resp.json()["results"][0]
-        assert r["provider"] == "copilot"
-        assert r["grade"] == "PASS"
 
 
 def test_verify_case_insensitive(config_path, tmp_path):
