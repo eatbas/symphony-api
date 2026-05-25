@@ -32,7 +32,7 @@ def start_parent_watchdog() -> None:
     """
     global _task
 
-    if sys.platform == "win32":
+    if sys.platform == "win32":  # pragma: no cover - Windows-only short-circuit
         # Maestro's Windows Job Object guarantees descendants die with it.
         return
 
@@ -114,5 +114,5 @@ def _trigger_shutdown() -> None:
     """
     try:
         os.kill(os.getpid(), signal.SIGTERM)
-    except OSError:
+    except OSError:  # pragma: no cover - self-SIGTERM does not realistically fail
         logger.exception("Failed to raise SIGTERM for self-shutdown")

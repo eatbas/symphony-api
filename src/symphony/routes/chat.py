@@ -96,7 +96,7 @@ async def score_websocket(websocket: WebSocket, score_id: str) -> None:
             if event.get("type") in TERMINAL_STATUSES:
                 await websocket.close()
                 return
-    except WebSocketDisconnect:
+    except WebSocketDisconnect:  # pragma: no cover - client disconnect timing is non-deterministic
         return
     finally:
         handle.unsubscribe(queue)

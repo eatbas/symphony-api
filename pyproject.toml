@@ -19,6 +19,7 @@ dependencies = [
 dev = [
   "pytest>=9.0,<10.0",
   "pytest-asyncio>=1.3,<2.0",
+  "pytest-cov>=7.0,<8.0",
   "playwright>=1.58,<2.0",
   "pytest-playwright>=0.7,<1.0",
 ]
@@ -35,3 +36,23 @@ symphony = ["ui/*.html", "ui/static/*.css", "ui/static/*.js"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+addopts = "--cov=src/symphony --cov-report=term-missing --cov-fail-under=95 --ignore=tests/ui_e2e"
+
+[tool.coverage.run]
+source = ["src/symphony"]
+omit = [
+  "src/symphony/ui/*",
+  "src/symphony/__init__.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+  "pragma: no cover",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "^\\s*\\.\\.\\.$",
+  "@(abc\\.)?abstractmethod",
+]

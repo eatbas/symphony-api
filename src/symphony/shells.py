@@ -25,7 +25,7 @@ class ScoreCancelledError(RuntimeError):
     pass
 
 
-class GitBashNotFoundError(RuntimeError):
+class GitBashNotFoundError(RuntimeError):  # pragma: no cover - Windows-only error path
     """Raised on Windows when Git Bash cannot be located."""
 
     def __init__(self) -> None:
@@ -54,7 +54,7 @@ def to_bash_path(value: str) -> str:
 def windows_subprocess_kwargs() -> dict[str, object]:
     """Return subprocess kwargs that hide console windows on Windows."""
     kwargs: dict[str, object] = {}
-    if os.name == "nt":
+    if os.name == "nt":  # pragma: no cover - Windows-only branch (covered via monkeypatch in test_shells.py)
         kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW  # type: ignore[attr-defined]
     return kwargs
 
@@ -71,19 +71,19 @@ def detect_bash_path(override: str | None = None) -> str:
     if os.name != "nt":
         return shutil.which("bash") or "bash"
 
-    candidates = [
+    candidates = [  # pragma: no cover - Windows-only Git Bash discovery
         r"C:\Program Files\Git\bin\bash.exe",
         r"C:\Program Files\Git\usr\bin\bash.exe",
     ]
-    for candidate in candidates:
+    for candidate in candidates:  # pragma: no cover - Windows-only
         if Path(candidate).exists():
             return candidate
 
-    found = shutil.which("bash")
-    if found:
+    found = shutil.which("bash")  # pragma: no cover - Windows-only fallback
+    if found:  # pragma: no cover
         return found
 
-    raise GitBashNotFoundError()
+    raise GitBashNotFoundError()  # pragma: no cover - Windows-only
 
 
 class BashSession:
@@ -128,11 +128,11 @@ class BashSession:
             process.stdin.write(b"exit\n")
             try:
                 await process.stdin.drain()
-            except ConnectionResetError:
+            except ConnectionResetError:  # pragma: no cover - race when bash exits during write
                 pass
         try:
             await asyncio.wait_for(process.wait(), timeout=2.0)
-        except asyncio.TimeoutError:
+        except asyncio.TimeoutError:  # pragma: no cover - timing-dependent force-kill path
             # Graceful exit timed out — force kill.
             if os.name == "nt":
                 await self._kill_windows_process_tree(process.pid)
@@ -155,7 +155,7 @@ class BashSession:
             if process is None or process.returncode is not None:
                 return
 
-            if os.name == "nt":
+            if os.name == "nt":  # pragma: no cover - Windows-only kill path
                 await self._kill_windows_process_tree(process.pid)
                 await process.wait()
                 await self._stop_reader_task()
@@ -164,7 +164,7 @@ class BashSession:
 
             try:
                 os.killpg(process.pid, signal.SIGINT)
-            except ProcessLookupError:
+            except ProcessLookupError:  # pragma: no cover - race: process exited between checks
                 return
 
             try:
@@ -172,18 +172,18 @@ class BashSession:
                 await self._stop_reader_task()
                 self._dispose_process()
                 return
-            except asyncio.TimeoutError:
+            except asyncio.TimeoutError:  # pragma: no cover - SIGINT didn't terminate within 1s
                 pass
 
-            try:
+            try:  # pragma: no cover - SIGKILL fallback after SIGINT timeout
                 os.killpg(process.pid, signal.SIGKILL)
-            except ProcessLookupError:
+            except ProcessLookupError:  # pragma: no cover
                 return
-            await process.wait()
-            await self._stop_reader_task()
-            self._dispose_process()
+            await process.wait()  # pragma: no cover
+            await self._stop_reader_task()  # pragma: no cover
+            self._dispose_process()  # pragma: no cover
 
-    async def _kill_windows_process_tree(self, pid: int) -> None:
+    async def _kill_windows_process_tree(self, pid: int) -> None:  # pragma: no cover - Windows-only
         """Kill the bash process and its entire child tree with taskkill /T."""
         kwargs: dict[str, object] = {
             "stdout": asyncio.subprocess.DEVNULL,
@@ -253,7 +253,7 @@ class BashSession:
             while True:
                 chunk = await self.process.stdout.read(4096)
                 if not chunk:
-                    if buffer:
+                    if buffer:  # pragma: no cover - EOF with trailing partial line is timing-dependent
                         await self._handle_output_line(bytes(buffer))
                     current = self._current_run
                     if current and not current.future.done():
@@ -271,7 +271,7 @@ class BashSession:
                     await self._handle_output_line(raw_line)
         except asyncio.CancelledError:
             raise
-        except Exception as exc:
+        except Exception as exc:  # pragma: no cover - defensive guard for asyncio reader internals
             current = self._current_run
             if current and not current.future.done():
                 current.future.set_exception(ShellSessionError(f"bash musician output reader failed: {exc}"))
