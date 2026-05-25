@@ -41,8 +41,8 @@ def test_verify_keyword_miss(config_path, tmp_path):
         resp = client.post("/v1/test/verify", json={
             "items": [
                 {
-                    "provider": "gemini",
-                    "model": "gemini-3-flash-preview",
+                    "provider": "antigravity",
+                    "model": "gemini-3-flash",
                     "new_exit_code": 0,
                     "resume_text": "You manage PF and ATM.",
                     "resume_exit_code": 0,

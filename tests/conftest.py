@@ -55,10 +55,10 @@ path = ""
 [storage]
 score_dir = "{escaped_score_dir}"
 
-[providers.gemini]
+[providers.antigravity]
 enabled = true
-executable = "{escaped_providers['gemini']}"
-models = ["gemini-3-flash-preview", "gemini-3.1-pro-preview"]
+executable = "{escaped_providers['antigravity']}"
+models = ["gemini-3-flash", "gemini-3-pro"]
 default_options = {{ extra_args = [] }}
 
 [providers.codex]

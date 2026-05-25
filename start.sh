@@ -100,14 +100,14 @@ PORT="${SYMPHONY_PORT:-8000}"
 
 echo "Checking CLI availability..."
 FOUND_COUNT=0
-for cli in claude gemini codex kimi copilot opencode; do
+for cli in claude agy codex kimi copilot opencode; do
   if command -v "$cli" &>/dev/null; then
     echo "  ✓ $cli: $(command -v "$cli")"
     FOUND_COUNT=$((FOUND_COUNT + 1))
   fi
 done
 if [ "$FOUND_COUNT" -eq 0 ]; then
-  echo "  No CLI providers found. Install at least one (claude, codex, gemini, etc.)."
+  echo "  No CLI providers found. Install at least one (claude, codex, agy, etc.)."
   exit 1
 fi
 echo "  ($FOUND_COUNT provider(s) available)"

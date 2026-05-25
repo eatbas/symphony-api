@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from symphony.discovery.discoverer import discover_provider, parse_models_from_toml
-from symphony.discovery.providers import _discover_gemini
+from symphony.discovery.providers import _discover_antigravity
 from symphony.models import InstrumentName
 
 
@@ -18,9 +18,9 @@ port = 8000
 enabled = true
 models = ["opus", "haiku"]
 
-[providers.gemini]
+[providers.antigravity]
 enabled = true
-models = ["gemini-3-flash-preview"]
+models = ["gemini-3-flash"]
 """
 
 BRACKETED_MODEL_CONFIG = """\
@@ -37,37 +37,18 @@ models = [
   "sonnet",
 ]
 
-[providers.gemini]
+[providers.antigravity]
 enabled = true
-models = ["gemini-3-flash-preview"]
+models = ["gemini-3-flash"]
 """
 
 
 class TestDiscoverProvider:
-    def test_gemini_discovery_prefers_cli_valid_model_set(self, tmp_path: Path) -> None:
-        bundle_dir = tmp_path / "bundle"
-        bundle_dir.mkdir()
-        (bundle_dir / "chunk.js").write_text(
-            """
-            var PREVIEW_GEMINI_MODEL = "gemini-3-pro-preview";
-            var PREVIEW_GEMINI_3_1_MODEL = "gemini-3.1-pro-preview";
-            var DEFAULT_GEMINI_MODEL = "gemini-2.5-pro";
-            var DEFAULT_GEMINI_FLASH_MODEL = "gemini-2.5-flash";
-            var VALID_GEMINI_MODELS = /* @__PURE__ */ new Set([
-              PREVIEW_GEMINI_MODEL,
-              PREVIEW_GEMINI_3_1_MODEL,
-              DEFAULT_GEMINI_MODEL,
-              DEFAULT_GEMINI_FLASH_MODEL
-            ]);
-            """,
-            encoding="utf-8",
-        )
-
-        with patch("symphony.discovery.providers._npm_package_dir", return_value=tmp_path):
-            assert _discover_gemini() == [
-                "gemini-3-pro-preview",
-                "gemini-3.1-pro-preview",
-            ]
+    def test_antigravity_discovery_is_a_static_passthrough(self) -> None:
+        """Antigravity has no programmatic model discovery; the function
+        must return None so the caller keeps the static config models.
+        """
+        assert _discover_antigravity() is None
 
     def test_parses_bracketed_model_names(self) -> None:
         assert parse_models_from_toml(BRACKETED_MODEL_CONFIG, "claude") == [
@@ -90,8 +71,8 @@ class TestDiscoverProvider:
         assert changed is True
         text = config.read_text(encoding="utf-8")
         assert '"sonnet"' in text
-        # Gemini section must be untouched.
-        assert '"gemini-3-flash-preview"' in text
+        # Antigravity section must be untouched.
+        assert '"gemini-3-flash"' in text
 
     def test_updates_bracketed_model_arrays_without_corrupting_toml(self, tmp_path: Path) -> None:
         config = tmp_path / "config.toml"
@@ -112,7 +93,7 @@ class TestDiscoverProvider:
             "sonnet",
             "sonnet-extended",
         ]
-        assert parsed["providers"]["gemini"]["models"] == ["gemini-3-flash-preview"]
+        assert parsed["providers"]["antigravity"]["models"] == ["gemini-3-flash"]
 
     def test_returns_false_when_models_unchanged(self, tmp_path: Path) -> None:
         config = tmp_path / "config.toml"

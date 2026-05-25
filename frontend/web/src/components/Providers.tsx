@@ -9,10 +9,10 @@ interface Provider {
 
 const PROVIDERS: Provider[] = [
   {
-    name: "Gemini",
-    cli: "gemini",
-    models: ["gemini-3-flash-preview"],
-    resume: true,
+    name: "Antigravity",
+    cli: "agy",
+    models: ["gemini-3-flash", "gemini-3-pro"],
+    resume: false,
   },
   {
     name: "Codex",
@@ -95,8 +95,13 @@ export function Providers() {
                 </div>
 
                 <div className="mt-4 flex items-center gap-1.5 text-xs text-neutral-500">
-                  <span className="h-2 w-2 rounded-full bg-green-500" />
-                  Resume supported
+                  <span
+                    className={
+                      "h-2 w-2 rounded-full " +
+                      (provider.resume ? "bg-green-500" : "bg-neutral-300")
+                    }
+                  />
+                  {provider.resume ? "Resume supported" : "New sessions only"}
                 </div>
               </div>
             </AnimatedSection>

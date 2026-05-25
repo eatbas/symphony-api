@@ -6,10 +6,12 @@ port = 8080
 # On Windows the app prefers Git Bash automatically when this is empty.
 path = ""
 
-[providers.gemini]
+[providers.antigravity]
+# Google Antigravity CLI (`agy`). Install via:
+#   curl -fsSL https://antigravity.google/cli/install.sh | bash
 enabled = true
 executable = ""
-models = ["gemini-3-flash-preview", "gemini-3-pro-preview", "gemini-3.1-pro-preview"]
+models = ["gemini-3-flash", "gemini-3-pro"]
 default_options = { extra_args = [] }
 # Desktop app manages timeouts via agent_timeout_ms; 0 = no sidecar timeout.
 cli_timeout = 0

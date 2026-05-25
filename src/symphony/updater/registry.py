@@ -21,7 +21,7 @@ class CLIPackageInfo:
 PACKAGE_REGISTRY: dict[str, CLIPackageInfo] = {
     "claude": CLIPackageInfo(InstrumentName.CLAUDE, "native", "@anthropic-ai/claude-code", "claude update"),
     "codex": CLIPackageInfo(InstrumentName.CODEX, "npm", "@openai/codex"),
-    "gemini": CLIPackageInfo(InstrumentName.GEMINI, "npm", "@google/gemini-cli"),
+    "agy": CLIPackageInfo(InstrumentName.ANTIGRAVITY, "native", "agy"),
     "kimi": CLIPackageInfo(InstrumentName.KIMI, "uv", "kimi-cli"),
     "copilot": CLIPackageInfo(InstrumentName.COPILOT, "native", "@github/copilot", "copilot update"),
     "opencode": CLIPackageInfo(InstrumentName.OPENCODE, "native", "opencode-ai", "opencode upgrade"),

@@ -124,19 +124,6 @@ def filter_copilot(models: list[str]) -> list[str]:
     return sorted(combined)
 
 
-def filter_gemini(models: list[str]) -> list[str]:
-    """Keep only Gemini models at major version 3 or above."""
-    result: list[str] = []
-    for m in models:
-        match = re.match(r"gemini-(\d+)", m)
-        if match:
-            if int(match.group(1)) >= 3:
-                result.append(m)
-        else:
-            result.append(m)
-    return sorted(result)
-
-
 def filter_codex(models: list[str]) -> list[str]:
     """Keep only GPT models at version 5.2 or above."""
     result: list[str] = []

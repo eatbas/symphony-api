@@ -24,7 +24,7 @@ class TestParseVersion:
         assert _parse_version("claude v1.0.16") == "1.0.16"
 
     def test_at_version(self):
-        assert _parse_version("@google/gemini-cli@0.3.1") == "0.3.1"
+        assert _parse_version("@anthropic-ai/claude-code@0.3.1") == "0.3.1"
 
     def test_no_match(self):
         assert _parse_version("no version here") is None
@@ -33,7 +33,7 @@ class TestParseVersion:
         assert _parse_version("") is None
 
     def test_multiline_output(self):
-        output = "Gemini CLI\nVersion: 0.5.2\nNode.js v20.0.0"
+        output = "Antigravity CLI\nVersion: 0.5.2\nNode.js v20.0.0"
         assert _parse_version(output) == "0.5.2"
 
 
@@ -51,7 +51,7 @@ class TestPackageRegistry:
     def test_all_providers_registered(self):
         assert "claude" in PACKAGE_REGISTRY
         assert "codex" in PACKAGE_REGISTRY
-        assert "gemini" in PACKAGE_REGISTRY
+        assert "agy" in PACKAGE_REGISTRY
         assert "kimi" in PACKAGE_REGISTRY
         assert "copilot" in PACKAGE_REGISTRY
         assert "opencode" in PACKAGE_REGISTRY

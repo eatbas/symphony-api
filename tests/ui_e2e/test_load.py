@@ -34,7 +34,7 @@ class TestProviderModelDropdowns:
     def test_provider_options_exist(self, console_page: Page):
         options = console_page.locator("#provider option")
         providers = [options.nth(i).get_attribute("value") for i in range(options.count())]
-        assert "gemini" in providers
+        assert "antigravity" in providers
         assert "claude" in providers
         assert "codex" in providers
         assert "kimi" in providers

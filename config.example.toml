@@ -10,15 +10,16 @@ path = ""
 # Leave empty to use ~/.maestro/symphony/scores, or set a writable absolute path.
 score_dir = ""
 
-[providers.gemini]
+[providers.antigravity]
+# Google Antigravity CLI (`agy`) — successor to Gemini CLI. Install via:
+#   curl -fsSL https://antigravity.google/cli/install.sh | bash
+# Model selection happens in ~/.gemini/antigravity-cli/settings.json
+# (no `--model` flag yet); the models below seed musician pools.
 enabled = true
 executable = ""
 models = [
-  "gemini-2.5-flash",
-  "gemini-2.5-pro",
-  "gemini-3-flash-preview",
-  "gemini-3-pro-preview",
-  "gemini-3.1-pro-preview",
+  "gemini-3-flash",
+  "gemini-3-pro",
 ]
 default_options = { extra_args = [] }
 # Desktop app manages timeouts via agent_timeout_ms; 0 = no sidecar timeout.

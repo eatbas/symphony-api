@@ -1,6 +1,6 @@
 # Symphony API
 
-Symphony -- coordinated AI CLI orchestra for **Gemini**, **Codex**, **Claude**, **Kimi**, **Copilot**, and **OpenCode**.
+Symphony -- coordinated AI CLI orchestra for **Antigravity**, **Codex**, **Claude**, **Kimi**, **Copilot**, and **OpenCode**.
 
 ## What it does
 
@@ -34,12 +34,19 @@ Integration guidance is available in `docs/`, and AI agents can start from `/llm
 
 | Provider     | CLI executable | Default models                           | Resume |
 | ------------ | -------------- | ---------------------------------------- | ------ |
-| **Gemini** | `gemini` | `gemini-3-flash-preview`, `gemini-2.5-pro`, `gemini-3.1-pro-preview` | Yes |
+| **Antigravity** | `agy` | `gemini-3-flash`, `gemini-3-pro` | No |
 | **Codex** | `codex` | `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.3-codex`, `gpt-5.2` | Yes |
 | **Claude** | `claude` | `opus`, `sonnet`, `haiku` | Yes |
 | **Kimi** | `kimi` | `kimi-code/kimi-for-coding` | Yes |
 | **Copilot** | `copilot` | `claude-sonnet-4.6`, `claude-haiku-4.5`, `claude-opus-4.6`, `gpt-5.4`, `gpt-5.3-codex`, `gpt-5.4-mini`, `gpt-5.2`, `gpt-5-mini`, `gpt-4.1`, `gemini-3-pro`, `gemini-3-flash`, `gemini-2.5-pro`, `grok-code-fast-1` | Yes |
 | **OpenCode** | `opencode` | `glm-4.5`, `glm-4.5-air`, `glm-4.5-flash`, `glm-4.5v`, `glm-4.6`, `glm-4.6v`, `glm-4.7`, `glm-4.7-flash`, `glm-4.7-flashx`, `glm-5`, `glm-5-turbo`, `glm-5.1` | Yes |
+
+> **Antigravity** is Google's successor to the Gemini CLI. Install via
+> `curl -fsSL https://antigravity.google/cli/install.sh | bash`. It uses
+> OAuth (no API key yet), has no `--model` flag (set the model in
+> `~/.gemini/antigravity-cli/settings.json`), and `-p`/print mode does
+> not yet emit conversation IDs — so Symphony exposes Antigravity as
+> **new-session only** until those gaps close upstream.
 
 ## Config
 
@@ -127,8 +134,8 @@ Submits a prompt to a provider. Returns **HTTP 202 Accepted** immediately with a
 **Resume chat:**
 ```json
 {
-  "provider": "gemini",
-  "model": "gemini-3-flash-preview",
+  "provider": "claude",
+  "model": "sonnet",
   "workspace_path": "/home/user/project",
   "mode": "resume",
   "prompt": "say hi in one word",

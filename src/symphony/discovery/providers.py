@@ -21,7 +21,7 @@ from pathlib import Path
 
 from ..models import InstrumentName
 from ..shells import windows_subprocess_kwargs
-from .filters import filter_codex, filter_copilot, filter_gemini, filter_opencode
+from .filters import filter_codex, filter_copilot, filter_opencode
 
 logger = logging.getLogger("symphony.discovery")
 
@@ -155,63 +155,17 @@ def _discover_claude() -> list[str] | None:
 
 
 # ---------------------------------------------------------------------------
-# Gemini — parse @google/gemini-cli bundle for model names
+# Antigravity — no programmatic discovery yet
 # ---------------------------------------------------------------------------
 
-# Gemini model names: version + variant (pro/flash/ultra), optional -preview.
-# Excludes bare versions ("gemini-3"), internal variants (-base, -lite,
-# -customtools, -image), and dated snapshots.
-_GEMINI_MODEL_RE = re.compile(
-    r"^gemini-\d[\d.]*-(pro|flash|ultra)(-preview)?$",
-)
 
+def _discover_antigravity() -> list[str] | None:
+    """Antigravity does not expose a queryable model catalogue yet.
 
-def _discover_gemini() -> list[str] | None:
-    """Extract model names from the locally installed Gemini CLI.
-
-    Prefers the CLI's own ``VALID_GEMINI_MODELS`` set so we only surface
-    model IDs the installed Gemini CLI explicitly recognises.
+    Models are configured in ``~/.gemini/antigravity-cli/settings.json``
+    (undocumented format) and there is no ``--model`` CLI flag. Return
+    ``None`` so the caller keeps the static models from config.toml.
     """
-    pkg = _npm_package_dir("gemini", "@google/gemini-cli")
-    if not pkg:
-        return None
-
-    bundle_dir = pkg / "bundle"
-    if not bundle_dir.is_dir():
-        return None
-
-    # Fast path: skip bundle scanning if the directory hasn't changed.
-    cache = _read_discovery_cache()
-    bundle_mtime = _dir_mtime(bundle_dir)
-    gemini_cache = cache.get("gemini", {})
-    if gemini_cache.get("mtime") == bundle_mtime and gemini_cache.get("models"):
-        return gemini_cache["models"]
-
-    raw_models: set[str] = set()
-    for js_file in bundle_dir.glob("*.js"):
-        text = js_file.read_text(encoding="utf-8", errors="replace")
-        valid_match = re.search(r"VALID_GEMINI_MODELS\s*=.*?new Set\(\[(.*?)\]\)", text, re.DOTALL)
-        if valid_match:
-            models = set(re.findall(r'"(gemini-[a-z0-9._-]+)"', valid_match.group(1)))
-            for token in re.findall(r"\b[A-Z][A-Z0-9_]+\b", valid_match.group(1)):
-                token_match = re.search(rf"\b{token}\b\s*=\s*\"([^\"]+)\"", text)
-                if token_match:
-                    models.add(token_match.group(1))
-            models = {name for name in models if _GEMINI_MODEL_RE.match(name)}
-            if models:
-                result = filter_gemini(sorted(models))
-                cache["gemini"] = {"mtime": bundle_mtime, "models": result}
-                _write_discovery_cache(cache)
-                return result
-        for name in re.findall(r'"(gemini-\d[a-z0-9._-]*)"', text):
-            if _GEMINI_MODEL_RE.match(name):
-                raw_models.add(name)
-
-    if raw_models:
-        result = filter_gemini(sorted(raw_models))
-        cache["gemini"] = {"mtime": bundle_mtime, "models": result}
-        _write_discovery_cache(cache)
-        return result
     return None
 
 
@@ -340,7 +294,7 @@ def _discover_opencode() -> list[str] | None:
 
 DISCOVERERS: dict[InstrumentName, callable] = {
     InstrumentName.CLAUDE: _discover_claude,
-    InstrumentName.GEMINI: _discover_gemini,
+    InstrumentName.ANTIGRAVITY: _discover_antigravity,
     InstrumentName.CODEX: _discover_codex,
     InstrumentName.COPILOT: _discover_copilot,
     InstrumentName.KIMI: _discover_kimi,

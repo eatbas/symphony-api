@@ -92,7 +92,7 @@ export function Hero() {
           className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-neutral-500 sm:text-xl"
         >
           One unified API that conducts{" "}
-          <strong className="text-black">Gemini</strong>,{" "}
+          <strong className="text-black">Antigravity</strong>,{" "}
           <strong className="text-black">Codex</strong>,{" "}
           <strong className="text-black">Claude</strong>,{" "}
           <strong className="text-black">Kimi</strong>,{" "}

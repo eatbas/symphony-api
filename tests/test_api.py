@@ -138,6 +138,22 @@ def test_chat_opencode_glm51_json(config_path, tmp_path):
         assert payload["provider_session_ref"]
 
 
+def test_chat_antigravity_json(config_path, tmp_path):
+    app = create_app()
+    with TestClient(app) as client:
+        body = {
+            "provider": "antigravity",
+            "model": "gemini-3-flash",
+            "workspace_path": str(tmp_path.resolve()),
+            "mode": "new",
+            "prompt": "hello",
+        }
+        accepted = submit_score(client, body)
+        payload = wait_for_terminal_score(client, accepted["score_id"])
+        assert payload["final_text"] == "antigravity:hello"
+        assert payload["provider_session_ref"]
+
+
 def test_chat_returns_400_for_unavailable_provider(config_path, tmp_path):
     app = create_app()
     with TestClient(app) as client:
@@ -204,7 +220,7 @@ def test_musicians_endpoint_reflects_musician_state(config_path, tmp_path):
         musicians = client.get("/v1/musicians").json()
         providers_seen = {m["provider"] for m in musicians}
         assert "claude" in providers_seen
-        assert "gemini" in providers_seen
+        assert "antigravity" in providers_seen
         assert "codex" in providers_seen
         assert "kimi" in providers_seen
         assert "copilot" in providers_seen
@@ -231,7 +247,7 @@ def test_models_endpoint_returns_all_models(config_path):
     app = create_app()
     with TestClient(app) as client:
         models = client.get("/v1/models").json()
-        assert len(models) == 11  # 2 gemini + 2 codex + 2 claude + 1 kimi + 2 copilot + 2 opencode
+        assert len(models) == 11  # 2 antigravity + 2 codex + 2 claude + 1 kimi + 2 copilot + 2 opencode
         providers_seen = {m["provider"] for m in models}
         assert "claude" in providers_seen
         assert "copilot" in providers_seen
