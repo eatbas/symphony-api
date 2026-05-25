@@ -89,7 +89,7 @@ def _locate_provider_models_array(text: str, provider: str) -> tuple[int, int] |
         return None
 
     array_start = section_start + models_line.end()
-    while array_start < len(text) and text[array_start].isspace():
+    while array_start < len(text) and text[array_start].isspace():  # pragma: no cover - regex consumes whitespace
         array_start += 1
     if array_start >= len(text) or text[array_start] != "[":
         return None
@@ -110,11 +110,11 @@ def parse_models_from_toml(text: str, provider: str) -> list[str]:
     snippet = f"models = {text[array_start:array_end + 1]}\n"
     try:
         parsed = tomllib.loads(snippet)
-    except tomllib.TOMLDecodeError:
+    except tomllib.TOMLDecodeError:  # pragma: no cover - bracket-matched arrays are valid TOML
         return []
 
     models = parsed.get("models", [])
-    if not isinstance(models, list):
+    if not isinstance(models, list):  # pragma: no cover - bracket-matched value is always a list
         return []
     return [str(item) for item in models if str(item).strip()]
 

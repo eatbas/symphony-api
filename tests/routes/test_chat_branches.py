@@ -84,3 +84,47 @@ def test_websocket_closes_immediately_when_handle_already_terminal(config_path) 
             assert msg["type"] == "score_snapshot"
             with pytest.raises(WebSocketDisconnect):
                 ws.receive_json()
+
+
+def test_websocket_disconnect_during_streaming_unsubscribes(config_path) -> None:
+    """Register a non-terminal handle, drop the client mid-stream, then
+    publish an event so the server's send_json detects the disconnect
+    and runs the WebSocketDisconnect branch."""
+    import asyncio
+    import threading
+    import time
+
+    app = create_app()
+    with TestClient(app) as client:
+        orchestra = app.state.orchestra
+        handle = ScoreHandle(provider=InstrumentName.CLAUDE, model="opus")
+        handle.status = ScoreStatus.RUNNING  # non-terminal
+        orchestra.register_score(handle)
+
+        def publish_after_delay() -> None:
+            time.sleep(0.2)
+            loop = app.state.orchestra.score_store.__dict__.get("_loop")
+            # Publish a non-terminal event so the server tries to send_json
+            # after the client has closed -- triggers WebSocketDisconnect.
+            for q in list(handle._subscribers):
+                try:
+                    q.put_nowait({"type": "output_delta", "text": "ping"})
+                except Exception:
+                    pass
+
+        with client.websocket_connect(f"/v1/chat/{handle.score_id}/ws") as ws:
+            ws.receive_json()  # initial snapshot
+            # Schedule a publish AFTER the client closes (in a thread that
+            # publishes shortly after the with-block exits).
+            t = threading.Thread(target=publish_after_delay, daemon=True)
+            t.start()
+        # ws is now closed; wait for the publish thread to fire.
+        t.join(timeout=2.0)
+
+        # Subscribers should eventually be cleaned up by the server's finally.
+        for _ in range(40):
+            if not handle._subscribers:
+                break
+            time.sleep(0.05)
+        # The subscriber set should be empty after WebSocketDisconnect cleanup.
+        assert not handle._subscribers

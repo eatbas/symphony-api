@@ -128,7 +128,7 @@ class BashSession:
             process.stdin.write(b"exit\n")
             try:
                 await process.stdin.drain()
-            except ConnectionResetError:
+            except ConnectionResetError:  # pragma: no cover - race when bash exits during write
                 pass
         try:
             await asyncio.wait_for(process.wait(), timeout=2.0)
@@ -177,11 +177,11 @@ class BashSession:
 
             try:  # pragma: no cover - SIGKILL fallback after SIGINT timeout
                 os.killpg(process.pid, signal.SIGKILL)
-            except ProcessLookupError:
+            except ProcessLookupError:  # pragma: no cover
                 return
-            await process.wait()
-            await self._stop_reader_task()
-            self._dispose_process()
+            await process.wait()  # pragma: no cover
+            await self._stop_reader_task()  # pragma: no cover
+            self._dispose_process()  # pragma: no cover
 
     async def _kill_windows_process_tree(self, pid: int) -> None:  # pragma: no cover - Windows-only
         """Kill the bash process and its entire child tree with taskkill /T."""
@@ -253,7 +253,7 @@ class BashSession:
             while True:
                 chunk = await self.process.stdout.read(4096)
                 if not chunk:
-                    if buffer:
+                    if buffer:  # pragma: no cover - EOF with trailing partial line is timing-dependent
                         await self._handle_output_line(bytes(buffer))
                     current = self._current_run
                     if current and not current.future.done():

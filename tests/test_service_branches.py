@@ -66,3 +66,39 @@ def test_lifespan_cancels_boot_task_on_immediate_shutdown(
     # Open and close the lifespan immediately.
     with TestClient(app):
         pass
+
+
+def test_boot_activates_unavailable_provider_after_discovery(
+    config_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When discovery flips a provider from unavailable→available, the
+    boot loop must call activate_provider on it (covers service.py:122)."""
+    from symphony.models import InstrumentName
+    from symphony.orchestra import Orchestra
+
+    # Force the discovery hook to report a change.
+    monkeypatch.setattr("symphony.service.run_startup_discovery", lambda _p: True)
+    # Patch Orchestra.start so it leaves one provider marked unavailable.
+    original_start = Orchestra.start
+
+    async def hooked_start(self):
+        await original_start(self)
+        self.available_providers[InstrumentName.KIMI] = False
+
+    monkeypatch.setattr(Orchestra, "start", hooked_start)
+
+    activated: list[InstrumentName] = []
+    original_activate = Orchestra.activate_provider
+
+    async def spy_activate(self, provider):
+        activated.append(provider)
+        return await original_activate(self, provider)
+
+    monkeypatch.setattr(Orchestra, "activate_provider", spy_activate)
+
+    app = create_app()
+    with TestClient(app) as client:
+        # Lifespan completes during startup; if discovery reload + activation
+        # ran, KIMI should be in the activated list.
+        client.get("/health")
+    assert InstrumentName.KIMI in activated

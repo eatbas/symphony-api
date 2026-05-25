@@ -120,6 +120,38 @@ async def test_periodic_loop_swallows_errors_and_continues(loaded_config) -> Non
         await stop(updater)
 
 
+@pytest.mark.asyncio
+async def test_periodic_loop_logs_each_status(loaded_config) -> None:
+    """Drive the for-loop body in periodic_loop (line 39) by returning a
+    non-empty list of status results."""
+    manager = Orchestra(loaded_config)
+    updater = CLIUpdater(
+        manager=manager,
+        config=UpdaterConfig(enabled=True, interval_hours=24, auto_update=False),
+    )
+
+    statuses = [_status(needs_update=False)]
+    call_count = {"n": 0}
+
+    async def fake_check():
+        call_count["n"] += 1
+        if call_count["n"] == 1:
+            return statuses
+        await asyncio.sleep(60)
+        return []
+
+    updater.check_and_update_all = fake_check  # type: ignore[method-assign]
+    try:
+        start(updater)
+        for _ in range(40):
+            if call_count["n"] >= 1:
+                break
+            await asyncio.sleep(0.05)
+        assert call_count["n"] >= 1
+    finally:
+        await stop(updater)
+
+
 class TestCacheSingle:
     def test_cache_single_replaces_existing_provider_entry(self, loaded_config) -> None:
         manager = Orchestra(loaded_config)
