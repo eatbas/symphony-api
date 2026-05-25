@@ -100,7 +100,7 @@ PORT="${SYMPHONY_PORT:-8000}"
 
 echo "Checking CLI availability..."
 FOUND_COUNT=0
-for cli in claude agy codex kimi opencode; do
+for cli in claude agy codex kimi; do
   if command -v "$cli" &>/dev/null; then
     echo "  ✓ $cli: $(command -v "$cli")"
     FOUND_COUNT=$((FOUND_COUNT + 1))

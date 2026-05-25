@@ -1,6 +1,6 @@
 # Symphony API
 
-Symphony -- coordinated AI CLI orchestra for **Antigravity**, **Codex**, **Claude**, **Kimi**, and **OpenCode**.
+Symphony -- coordinated AI CLI orchestra for **Antigravity**, **Codex**, **Claude**, and **Kimi**.
 
 ## What it does
 
@@ -38,7 +38,6 @@ Integration guidance is available in `docs/`, and AI agents can start from `/llm
 | **Codex** | `codex` | `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.3-codex`, `gpt-5.2` | Yes |
 | **Claude** | `claude` | `opus`, `sonnet`, `haiku` | Yes |
 | **Kimi** | `kimi` | `kimi-code/kimi-for-coding` | Yes |
-| **OpenCode** | `opencode` | `glm-4.5`, `glm-4.5-air`, `glm-4.5-flash`, `glm-4.5v`, `glm-4.6`, `glm-4.6v`, `glm-4.7`, `glm-4.7-flash`, `glm-4.7-flashx`, `glm-5`, `glm-5-turbo`, `glm-5.1` | Yes |
 
 > **Antigravity** is Google's successor to the Gemini CLI. Install via
 > `curl -fsSL https://antigravity.google/cli/install.sh | bash`. It uses

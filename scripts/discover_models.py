@@ -4,10 +4,10 @@
 This script wraps the ``symphony.discovery`` module for manual use.
 The same discovery runs automatically on every Symphony startup.
 
-All five providers (Claude, Antigravity, Codex, Kimi, OpenCode) are
-wired into the discovery registry. Antigravity is a static passthrough
-today — see ``_discover_antigravity`` for the reason — while the
-others discover their model lists programmatically.
+All four providers (Claude, Antigravity, Codex, Kimi) are wired into
+the discovery registry. Antigravity is a static passthrough today —
+see ``_discover_antigravity`` for the reason — while the others
+discover their model lists programmatically.
 
 Usage:
     python scripts/discover_models.py              # dry-run, print diff
@@ -32,7 +32,7 @@ from symphony.discovery.discoverer import (  # noqa: E402
 from symphony.discovery.providers import DISCOVERERS  # noqa: E402
 from symphony.models import InstrumentName  # noqa: E402
 
-PROVIDER_ORDER = ["antigravity", "codex", "claude", "kimi", "opencode"]
+PROVIDER_ORDER = ["antigravity", "codex", "claude", "kimi"]
 CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.toml"
 
 

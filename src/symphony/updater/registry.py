@@ -23,7 +23,6 @@ PACKAGE_REGISTRY: dict[str, CLIPackageInfo] = {
     "codex": CLIPackageInfo(InstrumentName.CODEX, "npm", "@openai/codex"),
     "agy": CLIPackageInfo(InstrumentName.ANTIGRAVITY, "native", "agy"),
     "kimi": CLIPackageInfo(InstrumentName.KIMI, "uv", "kimi-cli"),
-    "opencode": CLIPackageInfo(InstrumentName.OPENCODE, "native", "opencode-ai", "opencode upgrade"),
 }
 
 

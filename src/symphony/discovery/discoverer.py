@@ -176,8 +176,8 @@ def run_startup_discovery(config_path: Path) -> bool:
     updated_text = text
     changed = False
 
-    # Run all provider discoveries in parallel — especially important
-    # because OpenCode spawns a subprocess with a 15 s timeout.
+    # Run all provider discoveries in parallel — some CLIs spawn
+    # subprocesses with multi-second timeouts.
     discovery_results: dict[InstrumentName, list[str] | None] = {}
     with ThreadPoolExecutor(max_workers=len(DISCOVERERS)) as executor:
         futures = {

@@ -26,7 +26,7 @@ async def test_orchestra_boots_all_musicians(loaded_config):
     await manager.start()
     try:
         musicians = manager.musician_info()
-        assert len(musicians) == 9
+        assert len(musicians) == 7
         assert all(musician.ready for musician in musicians)
     finally:
         await manager.stop()

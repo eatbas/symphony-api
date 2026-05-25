@@ -10,7 +10,6 @@ class InstrumentName(StrEnum):
     CODEX = "codex"
     CLAUDE = "claude"
     KIMI = "kimi"
-    OPENCODE = "opencode"
 
 
 class ChatMode(StrEnum):

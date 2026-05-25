@@ -18,11 +18,11 @@ class TestPageLoad:
 
     def test_musician_count(self, console_page: Page):
         count = console_page.locator("#musician-count")
-        expect(count).to_have_text("9")
+        expect(count).to_have_text("7")
 
     def test_all_musicians_shown(self, console_page: Page):
         chips = console_page.locator(".musician-chip")
-        expect(chips).to_have_count(9)
+        expect(chips).to_have_count(7)
 
     def test_all_musicians_ready(self, console_page: Page):
         chips = console_page.locator(".musician-chip")
