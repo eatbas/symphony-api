@@ -1,12 +1,19 @@
 from __future__ import annotations
 
+import os
 import shlex
+from collections.abc import Awaitable, Callable
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from .base import CommandSpec, ParseState, ProviderAdapter
 from .options import boolean_thinking_schema, get_ralph_iterations, ralph_iterations_schema, thinking_enabled
 from ..models import InstrumentName
 from ..shells import to_bash_path
+from ..usage.aggregator import TurnSample
+from ..usage.models import UsageCounters, UsageSnapshot
+from ..usage.probes import build_session_log_snapshots_async
 
 
 class KimiAdapter(ProviderAdapter):
@@ -99,6 +106,35 @@ class KimiAdapter(ProviderAdapter):
             f"fi"
         )
 
+    async def get_usage(
+        self,
+        *,
+        executable: str,
+        models: list[str],
+        musician_lookup: Callable[[InstrumentName], Any | None],
+        run_subprocess: Callable[..., Awaitable[tuple[int, str]]],
+        now: datetime,
+    ) -> list[UsageSnapshot]:
+        """Return 5h-rolling and weekly snapshots from kimi session logs.
+
+        Kimi-for-coding stores sessions and logs under ``~/.kimi``
+        (override via ``KIMI_SHARE_DIR``). The stream-json output of each
+        turn includes usage counters; we walk the JSONL files and
+        aggregate per window. No plan-window quota is published by the
+        CLI, so ``limit`` and ``remaining`` are left ``None``.
+        """
+        return await build_session_log_snapshots_async(
+            provider=InstrumentName.KIMI,
+            root=_kimi_sessions_root(),
+            pattern="*.jsonl",
+            parser=_parse_kimi_line,
+            now=now,
+            not_found_note=(
+                "No Kimi session logs at $KIMI_SHARE_DIR/sessions (defaults to "
+                "~/.kimi/sessions) -- run the CLI at least once."
+            ),
+        )
+
     def parse_output_line(self, line: str, state: ParseState) -> list[dict[str, object]]:
         # Always scan the raw line for known fatal error markers --
         # kimi often emits these as plain text wrapped in
@@ -177,3 +213,66 @@ class KimiAdapter(ProviderAdapter):
     def _summarise_tool_result(output: str) -> str:
         stripped = output.strip()
         return stripped[:300]
+
+
+def _kimi_sessions_root() -> Path:
+    """Resolve Kimi's session directory.
+
+    Honours ``KIMI_SHARE_DIR`` per the Kimi CLI documentation, defaulting
+    to ``~/.kimi/sessions`` when the override is unset or empty.
+    """
+    share = os.environ.get("KIMI_SHARE_DIR")
+    base = Path(share) if share else Path.home() / ".kimi"
+    return base / "sessions"
+
+
+def _parse_kimi_line(obj: dict[str, Any]) -> TurnSample | None:
+    """Map a Kimi session-log line to a :class:`TurnSample`.
+
+    The kimi stream-json format wraps each model turn as a JSON object
+    containing ``usage`` (input/output token counts) plus a timestamp.
+    Lines without those fields (tool calls, progress, plain text) return
+    ``None``.
+    """
+    usage = obj.get("usage")
+    if not isinstance(usage, dict):
+        return None
+
+    input_tokens = usage.get("input_tokens") or usage.get("prompt_tokens")
+    output_tokens = usage.get("output_tokens") or usage.get("completion_tokens")
+    if input_tokens is not None and not isinstance(input_tokens, int):
+        return None
+    if not isinstance(output_tokens, int):
+        return None
+
+    ts = _parse_kimi_timestamp(obj)
+    if ts is None:
+        return None
+
+    total_field = usage.get("total_tokens")
+    if isinstance(total_field, int):
+        total = total_field
+    else:
+        total = (input_tokens or 0) + output_tokens
+
+    return TurnSample(
+        timestamp=ts,
+        counters=UsageCounters(
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            total_tokens=total or None,
+        ),
+    )
+
+
+def _parse_kimi_timestamp(obj: dict[str, Any]) -> datetime | None:
+    raw = obj.get("timestamp") or obj.get("ts") or obj.get("created_at")
+    if not isinstance(raw, str):
+        return None
+    try:
+        ts = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    return ts

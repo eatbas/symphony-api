@@ -5,10 +5,14 @@ import json
 import logging
 import os
 import sys
+from collections.abc import Awaitable, Callable
+from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from .base import CommandSpec, ParseState, ProviderAdapter
 from ..models import InstrumentName
+from ..usage.models import UsageSnapshot
 
 # Set to ``"1"`` by the test harness to bypass the PTY wrapper.  The
 # pywinpty wrapper can only spawn real Windows executables; ``.sh``
@@ -123,6 +127,30 @@ class AntigravityAdapter(ProviderAdapter):
         is handled by :meth:`ProviderAdapter._append_chunk`.
         """
         return self._append_chunk(state, line)
+
+    async def get_usage(
+        self,
+        *,
+        executable: str,
+        models: list[str],
+        musician_lookup: Callable[[InstrumentName], Any | None],
+        run_subprocess: Callable[..., Awaitable[tuple[int, str]]],
+        now: datetime,
+    ) -> list[UsageSnapshot]:
+        """Antigravity does not publish a quota or usage API yet.
+
+        Returns a single ``not_supported`` snapshot so the response shape
+        stays uniform with the other instruments.
+        """
+        return [
+            UsageSnapshot(
+                provider=InstrumentName.ANTIGRAVITY,
+                supported=False,
+                source="not_supported",
+                note="Antigravity does not expose a quota API yet.",
+                as_of=now.isoformat(),
+            )
+        ]
 
     async def before_invocation(self, model: str, workspace_path: str) -> None:
         """Acquire the lock and write the resolved label to settings.json.

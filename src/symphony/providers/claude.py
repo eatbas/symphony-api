@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from .base import CommandSpec, ParseState, ProviderAdapter
 from .options import get_thinking_level, thinking_level_schema
 from ..models import InstrumentName
+from ..usage.aggregator import TurnSample
+from ..usage.models import UsageCounters, UsageSnapshot
+from ..usage.probes import build_session_log_snapshots_async
 
 
 class ClaudeAdapter(ProviderAdapter):
@@ -108,6 +114,34 @@ class ClaudeAdapter(ProviderAdapter):
             raise ValueError("provider_options.max_turns must be a positive integer")
         argv.extend(["--max-turns", str(raw)])
 
+    async def get_usage(
+        self,
+        *,
+        executable: str,
+        models: list[str],
+        musician_lookup: Callable[[InstrumentName], Any | None],
+        run_subprocess: Callable[..., Awaitable[tuple[int, str]]],
+        now: datetime,
+    ) -> list[UsageSnapshot]:
+        """Return 5h-rolling and weekly snapshots aggregated from transcripts.
+
+        Claude Code stores conversation transcripts under
+        ``~/.claude/projects/<workspace-slug>/<uuid>.jsonl``. Each
+        assistant message carries a ``message.usage`` object with
+        ``input_tokens``, ``output_tokens``, and the two cache token
+        counters. We aggregate those over both windows.
+        """
+        return await build_session_log_snapshots_async(
+            provider=InstrumentName.CLAUDE,
+            root=_claude_transcripts_root(),
+            pattern="*.jsonl",
+            parser=_parse_claude_line,
+            now=now,
+            not_found_note=(
+                "No Claude transcripts at ~/.claude/projects -- run the CLI at least once."
+            ),
+        )
+
     def parse_output_line(self, line: str, state: ParseState) -> list[dict[str, object]]:
         obj = self._parse_json_or_warn(line, state)
         if obj is None:
@@ -133,3 +167,60 @@ class ClaudeAdapter(ProviderAdapter):
             errors = obj.get("errors") or [obj.get("result") or "Claude command failed"]
             state.error_message = "; ".join(str(item) for item in errors if item)
         return events
+
+
+def _claude_transcripts_root() -> Path:
+    """Resolve Claude Code's transcript directory.
+
+    Pulled out as a module-level helper so tests can monkey-patch the
+    function rather than the user's actual home directory.
+    """
+    return Path.home() / ".claude" / "projects"
+
+
+def _parse_claude_line(obj: dict[str, Any]) -> TurnSample | None:
+    """Map a transcript line to a :class:`TurnSample`.
+
+    Returns ``None`` for lines that lack a usable ISO-8601 ``timestamp``
+    or a ``message.usage`` object with integer token counts. Cache tokens
+    are folded into ``total_tokens`` so the aggregate reflects real
+    consumption against the underlying plan.
+    """
+    ts_raw = obj.get("timestamp")
+    if not isinstance(ts_raw, str):
+        return None
+    try:
+        ts = datetime.fromisoformat(ts_raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+
+    message = obj.get("message")
+    if not isinstance(message, dict):
+        return None
+    usage = message.get("usage")
+    if not isinstance(usage, dict):
+        return None
+
+    input_tokens = usage.get("input_tokens")
+    output_tokens = usage.get("output_tokens")
+    if not isinstance(input_tokens, int) or not isinstance(output_tokens, int):
+        return None
+
+    cache_in = usage.get("cache_creation_input_tokens") or 0
+    cache_read = usage.get("cache_read_input_tokens") or 0
+    if not isinstance(cache_in, int):
+        cache_in = 0
+    if not isinstance(cache_read, int):
+        cache_read = 0
+
+    total = input_tokens + output_tokens + cache_in + cache_read
+    return TurnSample(
+        timestamp=ts,
+        counters=UsageCounters(
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            total_tokens=total,
+        ),
+    )
