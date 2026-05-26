@@ -154,6 +154,23 @@ class ProviderAdapter:
     def parse_output_line(self, line: str, state: ParseState) -> list[dict[str, Any]]:
         raise NotImplementedError
 
+    async def before_invocation(self, model: str, workspace_path: str) -> None:
+        """Hook called by the executor immediately before the CLI is launched.
+
+        Default implementation is a no-op. Adapters override this when they
+        need to prepare per-call state (e.g. mutate a config file that the
+        CLI reads at startup, or pre-authorise the workspace). Must release
+        any acquired resources from :meth:`after_invocation` even if the
+        CLI fails.
+        """
+
+    async def after_invocation(self) -> None:
+        """Hook called by the executor after the CLI exits (success or failure).
+
+        Default implementation is a no-op. Pairs with :meth:`before_invocation`
+        to release adapter-level resources (e.g. an ``asyncio.Lock``).
+        """
+
     def model_option_schema(self, model: str) -> list[dict[str, Any]]:
         return []
 

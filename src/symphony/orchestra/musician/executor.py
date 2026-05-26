@@ -132,6 +132,7 @@ class _ExecutorMixin:
         idle_watcher = asyncio.create_task(
             self._idle_watcher(handle, idle_event)
         ) if self.idle_timeout > 0 else None
+        await self.adapter.before_invocation(request.model, request.workspace_path)
         try:
             exit_code = await asyncio.wait_for(
                 self.shell.run_script(script, on_line),
@@ -164,6 +165,10 @@ class _ExecutorMixin:
                 raise ShellSessionError(parse_state.error_message) from exc
             raise
         finally:
+            try:
+                await self.adapter.after_invocation()
+            except Exception:  # pragma: no cover - cleanup hook must not mask CLI errors
+                pass
             for task in (cancel_watcher, idle_watcher):
                 if task is not None and not task.done():
                     task.cancel()
