@@ -7,6 +7,7 @@ from fastapi import Request
 if TYPE_CHECKING:
     from ..orchestra import Orchestra
     from ..updater import CLIUpdater
+    from ..usage.monitor import UsageMonitor
 
 
 def get_orchestra(request: Request) -> Orchestra:
@@ -30,3 +31,8 @@ async def get_ready_orchestra(request: Request) -> Orchestra:
 def get_updater(request: Request) -> CLIUpdater:
     """Retrieve the CLIUpdater from application state."""
     return request.app.state.updater
+
+
+def get_usage_monitor(request: Request) -> UsageMonitor:
+    """Retrieve the UsageMonitor from application state."""
+    return request.app.state.usage_monitor

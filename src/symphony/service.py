@@ -21,9 +21,11 @@ from .routes import (
     providers_router,
     testlab_router,
     updates_router,
+    usage_router,
 )
 from .shells import GitBashNotFoundError
 from .updater import CLIUpdater
+from .usage.monitor import UsageMonitor
 from .orchestra import Orchestra
 
 logger = logging.getLogger("symphony.service")
@@ -40,6 +42,13 @@ Pools scale lazily up to the per-instrument `concurrency` limit.
 Scores are submitted via `POST /v1/chat`, polled via `GET /v1/chat/{score_id}`,
 and observed live via `GET /v1/chat/{score_id}/ws`.
 Running scores can be stopped via `POST /v1/chat/{score_id}/stop`.
+
+**Usage snapshots** — `GET /v1/usage` returns per-instrument quota and
+consumption snapshots. Two primary windows are reported where the
+underlying CLI exposes them: a 5-hour rolling window and a weekly
+window. Providers without a public quota surface (currently Antigravity)
+still appear with `supported=false` and `source="not_supported"` so the
+response shape stays uniform.
 
 **Instrument options** — per-request overrides via `provider_options`:
 
@@ -58,6 +67,7 @@ OPENAPI_TAGS = [
     {"name": "Musicians", "description": "Inspect runtime state of musician processes."},
     {"name": "Chat", "description": "Submit prompts to AI instruments and track durable score snapshots."},
     {"name": "Updates", "description": "CLI version checking and auto-update management."},
+    {"name": "Usage", "description": "Per-instrument quota and consumption snapshots (5-hour and weekly windows)."},
     {"name": "Test Lab", "description": "Multi-model harness for NEW/RESUME verification workflows."},
     {"name": "Console", "description": "Built-in browser UI for interactive testing."},
     {"name": "Documentation", "description": "Machine-readable integration documentation."},
@@ -81,6 +91,10 @@ def create_app() -> FastAPI:
         raise
 
     updater = CLIUpdater(manager=orchestra, config=config.updater)
+    # Reuse the updater's enabled flag so disabling background polling
+    # disables both checks; tests rely on this so the periodic loop does
+    # not race with the in-test cache assertions.
+    usage_monitor = UsageMonitor(manager=orchestra, enabled=config.updater.enabled)
     orchestra.restore_scores()
 
     async def _boot_orchestra() -> None:
@@ -126,6 +140,9 @@ def create_app() -> FastAPI:
         # Start the updater now that musicians are ready — its periodic
         # loop runs the first version check immediately.
         updater.start()
+        # Start the usage monitor in lockstep so quota snapshots warm up
+        # alongside CLI version cache.
+        usage_monitor.start()
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -143,6 +160,7 @@ def create_app() -> FastAPI:
             await asyncio.gather(
                 stop_parent_watchdog(),
                 updater.stop(),
+                usage_monitor.stop(),
                 orchestra.stop(),
                 return_exceptions=True,
             )
@@ -165,6 +183,7 @@ def create_app() -> FastAPI:
     app.state.config = config
     app.state.orchestra = orchestra
     app.state.updater = updater
+    app.state.usage_monitor = usage_monitor
 
     app.mount("/static", StaticFiles(directory=UI_STATIC_DIR), name="static")
 
@@ -192,6 +211,7 @@ def create_app() -> FastAPI:
     app.include_router(providers_router)
     app.include_router(chat_router)
     app.include_router(updates_router)
+    app.include_router(usage_router)
     app.include_router(testlab_router)
 
     return app

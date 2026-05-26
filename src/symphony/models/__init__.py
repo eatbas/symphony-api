@@ -17,6 +17,7 @@ from .testlab import (
     TestVerifyResponse,
     TestVerifyResultItem,
 )
+from ..usage.models import UsageCounters, UsageSnapshot
 
 __all__ = [
     "InstrumentName",
@@ -41,4 +42,6 @@ __all__ = [
     "HealthResponse",
     "CLIVersionStatus",
     "ErrorDetail",
+    "UsageCounters",
+    "UsageSnapshot",
 ]
