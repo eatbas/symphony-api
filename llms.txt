@@ -27,3 +27,8 @@ Rules for AI agents:
 - mode=resume requires provider_session_ref.
 - WebSocket streams send score_snapshot first and close after terminal events.
 - final_text is authoritative only after status=completed.
+
+Usage / quota surface:
+- GET /v1/usage returns UsageSnapshot entries for each instrument with `5h_rolling` and `weekly` windows where the CLI exposes them.
+- Providers without a quota surface return a single snapshot with supported=false and source="not_supported".
+- POST /v1/usage/refresh forces an immediate re-probe; GET /v1/usage/{provider} and POST /v1/usage/{provider}/refresh scope the same operations to one instrument.

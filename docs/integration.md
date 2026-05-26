@@ -121,6 +121,33 @@ curl -sS -X POST http://127.0.0.1:8000/v1/chat/{score_id}/stop
 
 The operation is idempotent for terminal scores.
 
+## Inspect Usage
+
+Symphony exposes per-instrument quota and consumption snapshots so callers can see how much of each provider's plan has been consumed.
+
+```bash
+curl -sS http://127.0.0.1:8000/v1/usage
+```
+
+The response is a list of `UsageSnapshot` entries. Each available instrument that publishes usable data returns two entries -- one for the 5-hour rolling window (matching Claude Code's native cadence) and one for the weekly window. Instruments without a published quota surface return a single entry with `supported=false` and `source="not_supported"`.
+
+Force an immediate re-probe with:
+
+```bash
+curl -sS -X POST http://127.0.0.1:8000/v1/usage/refresh
+```
+
+Per-instrument variants are available as `GET /v1/usage/{provider}` and `POST /v1/usage/{provider}/refresh`. The cache otherwise refreshes itself every 15 minutes in the background while the updater is enabled.
+
+Key `UsageSnapshot` fields:
+
+- `provider` and optional `model` identify the snapshot's scope.
+- `supported` is `false` when Symphony cannot read usage for the instrument.
+- `window` is `"5h_rolling"`, `"weekly"`, or null.
+- `used`, `limit`, `remaining`, and `percent_remaining` carry the counters; any may be null when the underlying CLI does not publish that figure.
+- `resets_at` is set when the provider reports a window reset time.
+- `source` is one of `"cli_command"`, `"session_log"`, `"stream"`, or `"not_supported"`.
+
 ## Error Handling
 
 Recommended client behaviour:

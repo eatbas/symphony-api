@@ -110,6 +110,24 @@ If the WebSocket disconnects before a terminal event, recover by polling `GET /v
 
 `POST /v1/chat/{score_id}/stop` is safe to call for queued, running, or already-terminal scores.
 
+## Usage Surface
+
+The usage endpoints are read-only and orthogonal to the chat lifecycle. Use them when the agent needs to reason about how much of a provider's plan has been consumed before submitting a new chat.
+
+Endpoints:
+
+- `GET /v1/usage` - list `UsageSnapshot` entries across instruments. Cache-first; lazy probe on cold cache.
+- `POST /v1/usage/refresh` - force an immediate re-probe of every available instrument.
+- `GET /v1/usage/{provider}` - per-instrument snapshots. Returns `400` if the instrument's CLI is not installed; returns a single `not_supported` snapshot (HTTP 200) when the CLI is installed but exposes no quota data.
+- `POST /v1/usage/{provider}/refresh` - per-instrument re-probe.
+
+Rules:
+
+- Treat `supported=false` and `source="not_supported"` as "no quota signal available" rather than an error.
+- A provider may return more than one snapshot: typically one for `window="5h_rolling"` and one for `window="weekly"`.
+- `limit`, `remaining`, and `percent_remaining` are populated only where the CLI publishes a cap. Do not infer caps from `used` alone.
+- `as_of` is the probe timestamp. Treat snapshots older than a few minutes as stale and call `POST /v1/usage/refresh` before acting on them.
+
 ## Client Generation
 
 Generate clients from:

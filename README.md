@@ -192,6 +192,10 @@ Stops a running or queued score. The `score_id` is returned in the accepted resp
 
 Returns `404` if the score ID is not found.
 
+### Usage
+
+Per-instrument quota / consumption snapshots. The API returns up to two `UsageSnapshot` entries per available instrument (a 5-hour rolling window and a weekly window) plus a `not_supported` placeholder for instruments without a public quota surface. Endpoints: `GET /v1/usage`, `POST /v1/usage/refresh`, `GET /v1/usage/{provider}`, `POST /v1/usage/{provider}/refresh`. See [docs/usage.md](docs/usage.md) for the endpoint details, the full `UsageSnapshot` field list, and per-CLI source paths.
+
 ### Test Lab
 
 #### `POST /v1/test/verify`
