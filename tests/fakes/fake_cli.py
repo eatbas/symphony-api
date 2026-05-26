@@ -80,14 +80,11 @@ else:
 
 model = read_flag("-m") or read_flag("--model") or "default"
 if provider == "antigravity":
-    # Antigravity has no --model flag and `-p` does not emit a
-    # conversation ID yet, so the fake CLI mirrors that contract: it
-    # accepts -p / --output-format and produces a synthetic session_id
-    # purely so the parser has something to attach to.
-    session_id = "antigravity-session-new"
-    emit(f'{{"type":"init","session_id":"{session_id}","model":"{model}"}}')
-    emit(f'{{"type":"message","role":"assistant","content":"antigravity:{prompt}","delta":true}}')
-    emit('{"type":"result","status":"success"}')
+    # Antigravity has no --model flag (model is set via settings.json)
+    # and `-p` does not emit a conversation ID. The real CLI prints the
+    # assistant response as plain text on stdout, so the fake mirrors
+    # that contract exactly.
+    emit(f"antigravity:{prompt}")
 elif provider == "claude":
     session_id = read_flag("--resume") or read_flag("--session-id") or "claude-session-new"
     emit(f'{{"type":"system","subtype":"init","session_id":"{session_id}","model":"{model}"}}')

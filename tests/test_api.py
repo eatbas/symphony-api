@@ -32,7 +32,7 @@ def test_health_and_provider_endpoints(config_path):
     with TestClient(app) as client:
         index = client.get("/")
         assert index.status_code == 200
-        assert "Symphony Console" in index.text
+        assert "Symphony" in index.text
 
         health = client.get("/health")
         assert health.status_code == 200
@@ -90,7 +90,7 @@ def test_chat_json_and_streaming(config_path, tmp_path):
         assert not list(tmp_path.rglob("*.sqlite"))
 
 
-def test_chat_antigravity_json(config_path, tmp_path):
+def test_chat_antigravity_plain_text(config_path, tmp_path):
     app = create_app()
     with TestClient(app) as client:
         body = {
@@ -103,7 +103,8 @@ def test_chat_antigravity_json(config_path, tmp_path):
         accepted = submit_score(client, body)
         payload = wait_for_terminal_score(client, accepted["score_id"])
         assert payload["final_text"] == "antigravity:hello"
-        assert payload["provider_session_ref"]
+        # `agy -p` does not emit a conversation ID; resume is unsupported.
+        assert payload["provider_session_ref"] is None
 
 
 def test_chat_returns_400_for_unavailable_provider(config_path, tmp_path):

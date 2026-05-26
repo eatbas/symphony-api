@@ -13,6 +13,11 @@ dependencies = [
   "uvicorn[standard]>=0.42,<1.0",
   "pydantic>=2.12,<3.0",
   "httpx>=0.28,<1.0",
+  # Antigravity (`agy --print`) refuses to write to non-TTY stdout on
+  # Windows. The adapter wraps it in a pseudo-terminal via the
+  # in-tree ``agy_pty_runner`` module, which talks to ConPTY (Windows
+  # 10+) directly through ctypes, so no external Windows dependencies
+  # are required.
 ]
 
 [project.optional-dependencies]

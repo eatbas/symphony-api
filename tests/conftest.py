@@ -92,6 +92,10 @@ def config_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     path = make_config(tmp_path)
     monkeypatch.setenv("SYMPHONY_CONFIG", str(path))
     monkeypatch.setenv("SYMPHONY_SKIP_DISCOVERY", "1")
+    # The Antigravity adapter wraps real `agy.exe` invocations in a PTY
+    # allocator (pywinpty) so the CLI emits stdout under Windows. Tests
+    # use a .sh wrapper that pywinpty cannot spawn, so disable the wrap.
+    monkeypatch.setenv("SYMPHONY_ANTIGRAVITY_NO_PTY", "1")
     return path
 
 
