@@ -18,6 +18,33 @@ def test_claude_new_command_assigns_session_id():
     assert command.preset_session_ref
 
 
+def test_claude_new_command_skips_permissions_prompt():
+    """Symphony runs claude non-interactively; tool-permission prompts would stall."""
+    adapter = ClaudeAdapter()
+    command = adapter.build_command(
+        executable="claude",
+        mode=ChatMode.NEW,
+        prompt="hello",
+        model="default",
+        session_ref=None,
+        provider_options={},
+    )
+    assert "--dangerously-skip-permissions" in command.argv
+
+
+def test_claude_resume_command_skips_permissions_prompt():
+    adapter = ClaudeAdapter()
+    command = adapter.build_command(
+        executable="claude",
+        mode=ChatMode.RESUME,
+        prompt="hello",
+        model="default",
+        session_ref="abc-123",
+        provider_options={},
+    )
+    assert "--dangerously-skip-permissions" in command.argv
+
+
 def test_claude_new_command_omits_model_for_default():
     adapter = ClaudeAdapter()
     command = adapter.build_command(

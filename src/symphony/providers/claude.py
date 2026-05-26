@@ -38,6 +38,10 @@ class ClaudeAdapter(ProviderAdapter):
             "--verbose",
             "--output-format",
             "stream-json",
+            # Bypass tool-permission prompts: Symphony invokes Claude
+            # non-interactively from a sandbox bash, so the prompts
+            # would otherwise stall the run.
+            "--dangerously-skip-permissions",
             "--enable-auto-mode",
             "--no-chrome",
             "--session-id",
@@ -57,6 +61,7 @@ class ClaudeAdapter(ProviderAdapter):
             "--verbose",
             "--output-format",
             "stream-json",
+            "--dangerously-skip-permissions",
             "--enable-auto-mode",
             "--no-chrome",
             "--resume",
