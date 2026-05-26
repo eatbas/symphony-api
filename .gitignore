@@ -18,6 +18,11 @@ frontend/web/dist/
 
 .maestro/
 
+# Antigravity CLI writes a per-project state file here the first time
+# `agy` is opened against the workspace. It contains a machine-local
+# UUID and absolute paths and should not be shared.
+.antigravitycli/
+
 # Logs
 *.log
 *.log.*
