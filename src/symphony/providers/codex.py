@@ -14,8 +14,17 @@ class CodexAdapter(ProviderAdapter):
     session_reference_format = "thread-id"
     model_aliases: dict[str, str] = {}
 
+    # ``--full-auto`` is deprecated upstream (replaced by ``--sandbox
+    # workspace-write``). Symphony already runs each codex invocation
+    # inside a per-call bash subshell, so the additional sandbox layer
+    # adds latency without buying meaningful isolation; the user
+    # explicitly opted in to a yolo-style flow. ``--dangerously-bypass
+    # -approvals-and-sandbox`` skips both approval prompts and the
+    # sandbox in a single flag.
+    _AUTO_APPROVE_ARGS = ["--dangerously-bypass-approvals-and-sandbox"]
+
     def build_new_command(self, *, executable: str, prompt: str, model: str, provider_options: dict) -> CommandSpec:
-        argv = [executable, "exec", "--json", "--full-auto"]
+        argv = [executable, "exec", "--json", *self._AUTO_APPROVE_ARGS]
         self._apply_model_override(argv, self._resolve_model(model), flag="-m")
         self._apply_reasoning_effort(argv, provider_options)
         argv.extend(self._extra_args(provider_options))
@@ -23,7 +32,7 @@ class CodexAdapter(ProviderAdapter):
         return CommandSpec(argv=argv)
 
     def build_resume_command(self, *, executable: str, prompt: str, model: str, session_ref: str, provider_options: dict) -> CommandSpec:
-        argv = [executable, "exec", "resume", "--json", "--full-auto"]
+        argv = [executable, "exec", "resume", "--json", *self._AUTO_APPROVE_ARGS]
         self._apply_model_override(argv, self._resolve_model(model), flag="-m")
         self._apply_reasoning_effort(argv, provider_options)
         argv.extend(self._extra_args(provider_options))

@@ -3,7 +3,8 @@ from symphony.providers.base import ParseState
 from symphony.providers.codex import CodexAdapter
 
 
-def test_codex_new_command_includes_full_auto():
+def test_codex_new_command_bypasses_approvals_and_sandbox():
+    """The deprecated --full-auto is replaced by the explicit bypass flag."""
     adapter = CodexAdapter()
     command = adapter.build_command(
         executable="codex",
@@ -13,7 +14,8 @@ def test_codex_new_command_includes_full_auto():
         session_ref=None,
         provider_options={},
     )
-    assert "--full-auto" in command.argv
+    assert "--dangerously-bypass-approvals-and-sandbox" in command.argv
+    assert "--full-auto" not in command.argv
     assert "--json" in command.argv
 
 
@@ -45,7 +47,7 @@ def test_codex_new_command_includes_thinking_level():
     assert 'model_reasoning_effort="high"' in command.argv
 
 
-def test_codex_resume_command_uses_json_and_full_auto():
+def test_codex_resume_command_uses_json_and_bypass_flag():
     adapter = CodexAdapter()
     command = adapter.build_command(
         executable="codex",
@@ -57,7 +59,8 @@ def test_codex_resume_command_uses_json_and_full_auto():
     )
     assert command.argv[:3] == ["codex", "exec", "resume"]
     assert "--json" in command.argv
-    assert "--full-auto" in command.argv
+    assert "--dangerously-bypass-approvals-and-sandbox" in command.argv
+    assert "--full-auto" not in command.argv
 
 
 def test_codex_parse_extracts_thread_id():
