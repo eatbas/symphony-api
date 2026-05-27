@@ -17,6 +17,7 @@ frontend/web/node_modules/
 frontend/web/dist/
 
 .maestro/
+.env
 
 # Antigravity CLI writes a per-project state file here the first time
 # `agy` is opened against the workspace. It contains a machine-local
