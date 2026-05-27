@@ -79,6 +79,12 @@ executable = "{escaped_providers['kimi']}"
 models = ["kimi-code/kimi-for-coding"]
 default_options = {{ extra_args = [] }}
 
+[providers.opencode]
+enabled = true
+executable = "{escaped_providers['opencode']}"
+models = ["glm-4.5", "glm-5.1"]
+default_options = {{ extra_args = [] }}
+
 [updater]
 enabled = false
 """.strip(),

@@ -18,11 +18,11 @@ class TestPageLoad:
 
     def test_musician_count(self, console_page: Page):
         count = console_page.locator("#musician-count")
-        expect(count).to_have_text("7")
+        expect(count).to_have_text("9")
 
     def test_all_musicians_shown(self, console_page: Page):
         chips = console_page.locator(".musician-chip")
-        expect(chips).to_have_count(7)
+        expect(chips).to_have_count(9)
 
     def test_all_musicians_ready(self, console_page: Page):
         chips = console_page.locator(".musician-chip")
@@ -38,6 +38,7 @@ class TestProviderModelDropdowns:
         assert "claude" in providers
         assert "codex" in providers
         assert "kimi" in providers
+        assert "opencode" in providers
 
     def test_model_dropdown_updates_on_provider_change(self, console_page: Page):
         console_page.select_option("#provider", "claude")
@@ -61,3 +62,10 @@ class TestProviderModelDropdowns:
         model_options = console_page.locator("#model option")
         models = [model_options.nth(i).get_attribute("value") for i in range(model_options.count())]
         assert "kimi-code/kimi-for-coding" in models
+
+    def test_opencode_models(self, console_page: Page):
+        console_page.select_option("#provider", "opencode")
+        console_page.wait_for_timeout(200)
+        model_options = console_page.locator("#model option")
+        models = [model_options.nth(i).get_attribute("value") for i in range(model_options.count())]
+        assert "glm-5.1" in models

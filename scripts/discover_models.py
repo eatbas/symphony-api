@@ -32,7 +32,7 @@ from symphony.discovery.discoverer import (  # noqa: E402
 from symphony.discovery.providers import DISCOVERERS  # noqa: E402
 from symphony.models import InstrumentName  # noqa: E402
 
-PROVIDER_ORDER = ["antigravity", "codex", "claude", "kimi"]
+PROVIDER_ORDER = ["antigravity", "codex", "claude", "kimi", "opencode"]
 CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.toml"
 
 

@@ -64,7 +64,7 @@ class TestCheckAndUpdateAll:
                 mock_curr.return_value = "1.0.0"
                 mock_latest.return_value = "1.0.0"
                 results = await checker.check_and_update_all()
-                assert len(results) == 4
+                assert len(results) == 5
                 assert all(not status.needs_update for status in results)
                 mock_update.assert_not_called()
         finally:
@@ -91,8 +91,8 @@ class TestCheckAndUpdateAll:
                 mock_latest.return_value = "1.1.0"
                 mock_update.return_value = True
                 results = await checker.check_and_update_all()
-                assert len(results) == 4
-                assert mock_update.call_count == 4
+                assert len(results) == 5
+                assert mock_update.call_count == 5
         finally:
             await manager.stop()
 
@@ -235,7 +235,7 @@ class TestRediscoveryIntegration:
                 mock_latest.return_value = "1.1.0"
                 mock_update.return_value = True
                 await checker.check_and_update_all()
-                assert mock_rediscover.call_count == 4
+                assert mock_rediscover.call_count == 5
 
         finally:
             await manager.stop()
@@ -287,7 +287,7 @@ class TestLifecycleAndCache:
                 mock_curr.return_value = "1.0.0"
                 mock_latest.return_value = "1.0.0"
                 await checker.check_and_update_all()
-                assert len(checker.last_results) == 4
+                assert len(checker.last_results) == 5
         finally:
             await manager.stop()
 

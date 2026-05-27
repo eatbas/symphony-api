@@ -32,12 +32,13 @@ TEST_MUSICIANS_PATH = SYMPHONY / "tests" / "test_musicians.py"
 TEST_LOAD_PATH = SYMPHONY / "tests" / "ui_e2e" / "test_load.py"
 TESTLAB_PATH = SYMPHONY / "src" / "symphony" / "routes" / "testlab.py"
 
-PROVIDER_ORDER = ["antigravity", "codex", "claude", "kimi"]
+PROVIDER_ORDER = ["antigravity", "codex", "claude", "kimi", "opencode"]
 PROVIDER_CLI = {
     "antigravity": "agy",
     "codex": "codex",
     "claude": "claude",
     "kimi": "kimi",
+    "opencode": "opencode",
 }
 
 # Max models per provider in the test config (keeps tests fast).

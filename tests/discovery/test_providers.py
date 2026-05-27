@@ -11,6 +11,7 @@ from symphony.discovery.providers import (
     _discover_claude,
     _discover_codex,
     _discover_kimi,
+    _discover_opencode,
     _dir_mtime,
     _grep_file,
     _npm_package_dir,
@@ -305,3 +306,78 @@ class TestDiscoverKimi:
         (kimi_dir / "config.toml").write_text("[other]\nfoo = 1\n")
         monkeypatch.setattr(Path, "home", classmethod(lambda _cls: tmp_path))
         assert _discover_kimi() is None
+
+
+class TestDiscoverOpencode:
+    """Coverage for ``_discover_opencode``.
+
+    The real CLI is not assumed to be on the developer's PATH for the unit
+    tests below -- ``shutil.which`` and ``subprocess.run`` are both
+    monkey-patched.
+    """
+
+    def test_returns_none_when_opencode_not_on_path(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(providers_mod.shutil, "which", lambda _name: None)
+        assert _discover_opencode() is None
+
+    def test_returns_none_when_subprocess_times_out(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The CLI subprocess raising ``TimeoutExpired`` must be caught."""
+        import subprocess as _subprocess
+
+        monkeypatch.setattr(providers_mod.shutil, "which", lambda _name: "/usr/bin/opencode")
+
+        def boom(*_args, **_kwargs):
+            raise _subprocess.TimeoutExpired(cmd="opencode models", timeout=5)
+
+        monkeypatch.setattr(providers_mod.subprocess, "run", boom)
+        assert _discover_opencode() is None
+
+    def test_returns_none_when_subprocess_raises_os_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(providers_mod.shutil, "which", lambda _name: "/usr/bin/opencode")
+
+        def boom(*_args, **_kwargs):
+            raise OSError("permission denied")
+
+        monkeypatch.setattr(providers_mod.subprocess, "run", boom)
+        assert _discover_opencode() is None
+
+    def test_filters_and_strips_zai_coding_plan_prefix(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from types import SimpleNamespace
+
+        monkeypatch.setattr(providers_mod.shutil, "which", lambda _name: "/usr/bin/opencode")
+        stdout = (
+            "anthropic/claude-3\n"
+            "zai-coding-plan/glm-4.5\n"
+            "zai-coding-plan/glm-5\n"
+            "zai-coding-plan/glm-5-turbo\n"
+        )
+        monkeypatch.setattr(
+            providers_mod.subprocess,
+            "run",
+            lambda *_a, **_k: SimpleNamespace(stdout=stdout, returncode=0),
+        )
+        # filter_opencode keeps only the latest major version (5).
+        assert _discover_opencode() == ["glm-5", "glm-5-turbo"]
+
+    def test_returns_none_when_no_zai_models_found(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from types import SimpleNamespace
+
+        monkeypatch.setattr(providers_mod.shutil, "which", lambda _name: "/usr/bin/opencode")
+        monkeypatch.setattr(
+            providers_mod.subprocess,
+            "run",
+            lambda *_a, **_k: SimpleNamespace(
+                stdout="anthropic/claude-3\nopenai/gpt-5\n", returncode=0
+            ),
+        )
+        assert _discover_opencode() is None

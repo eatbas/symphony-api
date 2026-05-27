@@ -33,7 +33,7 @@ logger = logging.getLogger("symphony.service")
 UI_STATIC_DIR = Path(__file__).with_name("ui") / "static"
 
 API_DESCRIPTION = """\
-Symphony API — a coordinated collective of AI coding CLIs (Antigravity, Codex, Claude, Kimi).
+Symphony API — a coordinated collective of AI coding CLIs (Antigravity, Codex, Claude, Kimi, OpenCode).
 
 The API maintains persistent musician pools for configured instrument/model pairs,
 enabling low-latency prompt execution without cold-start overhead.
@@ -46,9 +46,9 @@ Running scores can be stopped via `POST /v1/chat/{score_id}/stop`.
 **Usage snapshots** — `GET /v1/usage` returns per-instrument quota and
 consumption snapshots. Two primary windows are reported where the
 underlying CLI exposes them: a 5-hour rolling window and a weekly
-window. Providers without a public quota surface (currently Antigravity)
-still appear with `supported=false` and `source="not_supported"` so the
-response shape stays uniform.
+window. Providers without a public quota surface (currently Antigravity
+and OpenCode) still appear with `supported=false` and
+`source="not_supported"` so the response shape stays uniform.
 
 **Instrument options** — per-request overrides via `provider_options`:
 
@@ -56,7 +56,7 @@ response shape stays uniform.
 |-----|-----------|-------------|
 | `extra_args` | All | Raw CLI flags appended to the command. |
 | `thinking_level` | Codex, supported Claude models | Thinking level exposed by `/v1/models`. |
-| `thinking_mode` | Kimi | Toggle native thinking mode. |
+| `thinking_mode` | Kimi, OpenCode | Toggle native thinking mode. |
 | `max_turns` | Claude | Maximum autonomous tool-use turns. Omit for CLI default. |
 """
 

@@ -61,6 +61,14 @@ default_options = { extra_args = [] }
 cli_timeout = 0
 idle_timeout = 0
 
+[providers.opencode]
+enabled = true
+executable = ""
+models = ["glm-5-turbo", "glm-5.1", "glm-5v-turbo"]
+default_options = { extra_args = [] }
+cli_timeout = 0
+idle_timeout = 0
+
 [updater]
 enabled = true
 interval_hours = 4

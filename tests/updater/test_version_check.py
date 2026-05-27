@@ -53,6 +53,14 @@ class TestPackageRegistry:
         assert "codex" in PACKAGE_REGISTRY
         assert "agy" in PACKAGE_REGISTRY
         assert "kimi" in PACKAGE_REGISTRY
+        assert "opencode" in PACKAGE_REGISTRY
+
+    def test_opencode_native_upgrade(self):
+        info = PACKAGE_REGISTRY["opencode"]
+        assert info.manager == "native"
+        assert info.package == "opencode-ai"
+        assert info.update_cmd == "opencode upgrade"
+        assert info.provider == InstrumentName.OPENCODE
 
     def test_claude_is_native(self):
         info = PACKAGE_REGISTRY["claude"]
@@ -195,7 +203,7 @@ class TestProbeVersionsOnly:
                 mock_curr.return_value = "1.0.0"
                 mock_latest.return_value = "1.0.0"
                 results = await checker.probe_versions_only()
-                assert len(results) == 4
+                assert len(results) == 5
                 assert all(not status.needs_update for status in results)
         finally:
             await manager.stop()
@@ -222,7 +230,7 @@ class TestProbeVersionsOnly:
                 mock_curr.return_value = "1.0.0"
                 mock_latest.return_value = "1.1.0"
                 results = await checker.probe_versions_only()
-                assert len(results) == 4
+                assert len(results) == 5
                 assert all(status.needs_update for status in results)
                 mock_update.assert_not_called()
         finally:
@@ -245,7 +253,7 @@ class TestProbeVersionsOnly:
                 mock_curr.return_value = "1.0.0"
                 mock_latest.return_value = "1.0.0"
                 await checker.probe_versions_only()
-                assert len(checker.last_results) == 4
+                assert len(checker.last_results) == 5
         finally:
             await manager.stop()
 
@@ -276,7 +284,7 @@ class TestAPIEndpoints:
                 response = client.get("/v1/cli-versions")
                 assert response.status_code == 200
                 data = response.json()
-                assert len(data) == 4
+                assert len(data) == 5
                 assert mock_curr.await_count >= 1
                 assert mock_latest.await_count >= 1
                 # Lazy GET must never block on installs.
@@ -329,7 +337,7 @@ class TestAPIEndpoints:
                 # Second call should hit the cache.
                 response = client.get("/v1/cli-versions")
                 assert response.status_code == 200
-                assert len(response.json()) == 4
+                assert len(response.json()) == 5
                 assert mock_curr.await_count == prior_count
 
     def test_cli_versions_check_returns_results(self, config_path):
@@ -346,7 +354,7 @@ class TestAPIEndpoints:
                 response = client.post("/v1/cli-versions/check")
                 assert response.status_code == 200
                 data = response.json()
-                assert len(data) == 4
+                assert len(data) == 5
                 for item in data:
                     assert "provider" in item
                     assert "current_version" in item

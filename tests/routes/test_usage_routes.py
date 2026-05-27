@@ -70,7 +70,7 @@ def test_usage_endpoint_falls_through_to_not_supported_when_no_session_logs(
     assert response.status_code == 200
     body = response.json()
     providers = {entry["provider"] for entry in body}
-    assert providers == {"antigravity", "codex", "claude", "kimi"}
+    assert providers == {"antigravity", "codex", "claude", "kimi", "opencode"}
     for entry in body:
         assert entry["supported"] is False
         assert entry["source"] == "not_supported"

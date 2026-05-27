@@ -31,6 +31,7 @@ PACKAGE_REGISTRY: dict[str, CLIPackageInfo] = {
         "bash -c 'curl -fsSL https://antigravity.google/cli/install.sh | bash'",
     ),
     "kimi": CLIPackageInfo(InstrumentName.KIMI, "uv", "kimi-cli"),
+    "opencode": CLIPackageInfo(InstrumentName.OPENCODE, "native", "opencode-ai", "opencode upgrade"),
 }
 
 

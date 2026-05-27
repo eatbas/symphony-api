@@ -38,6 +38,7 @@ Integration guidance is available in `docs/`, and AI agents can start from `/llm
 | **Codex** | `codex` | `gpt-5.4`, `gpt-5.4-mini` | Yes |
 | **Claude** | `claude` | `opus`, `sonnet`, `haiku` | Yes |
 | **Kimi** | `kimi` | `kimi-code/kimi-for-coding` | Yes |
+| **OpenCode** | `opencode` | `glm-5`, `glm-5.1` | Yes |
 
 > **Antigravity** is Google's successor to the Gemini CLI. Install via
 > `curl -fsSL https://antigravity.google/cli/install.sh | bash`. It uses

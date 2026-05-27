@@ -94,8 +94,9 @@ export function Hero() {
           One unified API that conducts{" "}
           <strong className="text-black">Antigravity</strong>,{" "}
           <strong className="text-black">Codex</strong>,{" "}
-          <strong className="text-black">Claude</strong>, and{" "}
-          <strong className="text-black">Kimi</strong>{" "}
+          <strong className="text-black">Claude</strong>,{" "}
+          <strong className="text-black">Kimi</strong>, and{" "}
+          <strong className="text-black">OpenCode</strong>{" "}
           as warm, pre-spawned CLI musicians — ready to play on demand.
         </motion.p>
 

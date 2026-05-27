@@ -37,19 +37,19 @@ def test_health_and_provider_endpoints(config_path):
         health = client.get("/health")
         assert health.status_code == 200
         payload = health.json()
-        assert payload["musician_count"] == 7
+        assert payload["musician_count"] == 9
 
         providers = client.get("/v1/providers")
         assert providers.status_code == 200
-        assert len(providers.json()) == 4
+        assert len(providers.json()) == 5
 
         all_providers = client.get("/v1/providers?all=true")
         assert all_providers.status_code == 200
-        assert len(all_providers.json()) == 4
+        assert len(all_providers.json()) == 5
 
         musicians = client.get("/v1/musicians")
         assert musicians.status_code == 200
-        assert len(musicians.json()) == 7
+        assert len(musicians.json()) == 9
 
 
 def test_chat_json_and_streaming(config_path, tmp_path):
@@ -198,7 +198,7 @@ def test_models_endpoint_returns_all_models(config_path):
     app = create_app()
     with TestClient(app) as client:
         models = client.get("/v1/models").json()
-        assert len(models) == 7  # 2 antigravity + 2 codex + 2 claude + 1 kimi
+        assert len(models) == 9  # 2 antigravity + 2 codex + 2 claude + 1 kimi + 2 opencode
         providers_seen = {m["provider"] for m in models}
         assert "claude" in providers_seen
         assert "antigravity" in providers_seen

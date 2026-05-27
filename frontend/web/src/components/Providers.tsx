@@ -32,6 +32,12 @@ const PROVIDERS: Provider[] = [
     models: ["kimi-code", "kimi-for-coding"],
     resume: true,
   },
+  {
+    name: "OpenCode",
+    cli: "opencode",
+    models: ["glm-5", "glm-5.1"],
+    resume: true,
+  },
 ];
 
 export function Providers() {
@@ -43,7 +49,7 @@ export function Providers() {
             Instruments
           </span>
           <h2 className="mt-4 text-4xl font-bold tracking-tight text-black sm:text-5xl">
-            Four providers, one podium
+            Five providers, one podium
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-neutral-500">
             Each provider is a first-class musician with its own CLI adapter,

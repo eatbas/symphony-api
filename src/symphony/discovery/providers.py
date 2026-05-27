@@ -16,12 +16,16 @@ import json
 import logging
 import re
 import shutil
+import subprocess
 from pathlib import Path
 
 from ..models import InstrumentName
-from .filters import filter_codex
+from ..shells import windows_subprocess_kwargs
+from .filters import filter_codex, filter_opencode
 
 logger = logging.getLogger("symphony.discovery")
+
+_TIMEOUT = 15
 
 _DISCOVERY_CACHE_FILE = Path.home() / ".maestro" / "symphony" / ".discovery_cache.json"
 
@@ -215,6 +219,42 @@ def _discover_kimi() -> list[str] | None:
 
 
 # ---------------------------------------------------------------------------
+# OpenCode — CLI ``models`` subcommand
+# ---------------------------------------------------------------------------
+
+
+def _discover_opencode() -> list[str] | None:
+    """Run ``opencode models`` and return zai-coding-plan (GLM) model IDs.
+
+    Only includes ``zai-coding-plan/`` models.  The prefix is stripped
+    because the adapter re-adds it at runtime.
+    """
+    exe = shutil.which("opencode")
+    if exe is None:
+        return None
+
+    try:
+        result = subprocess.run(
+            [exe, "models"],
+            capture_output=True,
+            text=True,
+            timeout=_TIMEOUT,
+            **windows_subprocess_kwargs(),
+        )
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        logger.warning("opencode models failed: %s", exc)
+        return None
+
+    models: list[str] = []
+    for line in result.stdout.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("zai-coding-plan/"):
+            models.append(stripped.removeprefix("zai-coding-plan/"))
+
+    return filter_opencode(models) if models else None
+
+
+# ---------------------------------------------------------------------------
 # Registry — provider → discovery function
 # ---------------------------------------------------------------------------
 
@@ -223,4 +263,5 @@ DISCOVERERS: dict[InstrumentName, callable] = {
     InstrumentName.ANTIGRAVITY: _discover_antigravity,
     InstrumentName.CODEX: _discover_codex,
     InstrumentName.KIMI: _discover_kimi,
+    InstrumentName.OPENCODE: _discover_opencode,
 }
