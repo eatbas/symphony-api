@@ -271,12 +271,12 @@ Features:
 Run the full suite with coverage:
 
 ```bash
-pytest                              # configured via pyproject.toml: --cov-fail-under=95
+pytest                              # configured via pyproject.toml: --cov-fail-under=100
 pytest --cov-report=html            # inspect htmlcov/index.html for missed lines
 ```
 
-The pytest config in `pyproject.toml` enforces a hard 95% coverage gate via
-`--cov-fail-under=95` on the `src/symphony` package. The Playwright UI tests
+The pytest config in `pyproject.toml` enforces a hard 100% coverage gate via
+`--cov-fail-under=100` on the `src/symphony` package. The Playwright UI tests
 under `tests/ui_e2e/` are excluded from coverage to keep the metric focused on
 the API surface. Platform-specific branches (Windows-only Git Bash discovery,
 signal handlers) are marked with `# pragma: no cover`.

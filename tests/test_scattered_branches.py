@@ -71,6 +71,18 @@ def test_chat_request_rejects_relative_path() -> None:
         )
 
 
+def test_chat_request_accepts_posix_absolute_workspace_path() -> None:
+    """Covers the POSIX-absolute branch (``startswith("/")``)."""
+    req = ChatRequest(
+        provider="claude",
+        model="opus",
+        workspace_path="/home/eren/projects/symphony",
+        mode=ChatMode.NEW,
+        prompt="hi",
+    )
+    assert req.workspace_path == "/home/eren/projects/symphony"
+
+
 # ---------------------------------------------------------------------------
 # routes/docs.py:52 — fallback to embedded LLMS_TEXT when llms.txt missing
 # ---------------------------------------------------------------------------

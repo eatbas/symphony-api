@@ -228,3 +228,129 @@ def test_max_lines_per_file_is_reasonable() -> None:
     """Sanity guard: the cap should be high enough to cover real sessions
     but low enough to prevent runaway probes."""
     assert MAX_LINES_PER_FILE >= 10_000
+
+
+def test_collect_samples_skips_files_with_mtime_older_than_cutoff(
+    tmp_path: Path,
+) -> None:
+    """Forces a file's mtime back so the mtime-skip branch fires."""
+    import os
+    import time
+
+    now = datetime.now(timezone.utc)
+    log = tmp_path / "stale.jsonl"
+    _write_jsonl(
+        log,
+        [json.dumps({"ts": now.isoformat(), "tokens": 5})],
+    )
+    # 30 days back; outside the 7-day cutoff used below.
+    old_ts = time.time() - 30 * 86400
+    os.utime(log, (old_ts, old_ts))
+
+    samples = collect_samples(
+        root=tmp_path,
+        pattern="*.jsonl",
+        parser=_parser,
+        cutoff=now - timedelta(days=7),
+    )
+
+    assert samples == []
+
+
+def test_collect_samples_skips_empty_lines(tmp_path: Path) -> None:
+    """The aggregator must ignore blank lines inside a JSONL file."""
+    now = datetime.now(timezone.utc)
+    log = tmp_path / "with_blanks.jsonl"
+    payload = json.dumps({"ts": now.isoformat(), "tokens": 7})
+    log.write_text(f"{payload}\n\n   \n{payload}\n", encoding="utf-8")
+
+    samples = collect_samples(
+        root=tmp_path,
+        pattern="*.jsonl",
+        parser=_parser,
+        cutoff=now - timedelta(days=7),
+    )
+
+    assert len(samples) == 2
+
+
+def test_collect_samples_skips_files_that_raise_on_open(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """A file that raises ``OSError`` when opened must be skipped gracefully."""
+    now = datetime.now(timezone.utc)
+    log = tmp_path / "unreadable.jsonl"
+    _write_jsonl(log, [json.dumps({"ts": now.isoformat(), "tokens": 1})])
+
+    original_open = Path.open
+
+    def boom(self, *args, **kwargs):
+        if self == log:
+            raise OSError("simulated unreadable file")
+        return original_open(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", boom)
+
+    samples = collect_samples(
+        root=tmp_path,
+        pattern="*.jsonl",
+        parser=_parser,
+        cutoff=now - timedelta(days=7),
+    )
+
+    assert samples == []
+
+
+def test_collect_samples_returns_empty_when_rglob_raises(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """If ``rglob`` raises ``OSError`` (e.g. permissions), return ``[]``."""
+    def boom(self, pattern):
+        raise OSError("simulated rglob failure")
+
+    monkeypatch.setattr(Path, "rglob", boom)
+
+    samples = collect_samples(
+        root=tmp_path,
+        pattern="*.jsonl",
+        parser=_parser,
+        cutoff=datetime.now(timezone.utc) - timedelta(days=7),
+    )
+
+    assert samples == []
+
+
+def test_files_with_mtime_tags_failures_with_zero_and_none(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """A file whose ``stat()`` fails inside ``_files_with_mtime`` must be
+    tagged with ``(0.0, None, path)`` so it sorts to the back rather than
+    breaking the probe. Calling ``_files_with_mtime`` directly side-steps
+    the ``is_file()`` gate (which also calls ``stat``) so the test can
+    exercise the exact stat-on-tagged-file branch (lines 137-138).
+    """
+    from symphony.usage.aggregator import _files_with_mtime
+
+    bad = tmp_path / "bad.jsonl"
+    bad.write_text("{}", encoding="utf-8")
+
+    # Make rglob yield our path directly, bypassing the is_file() gate.
+    monkeypatch.setattr(Path, "rglob", lambda self, _pattern: iter([bad]))
+
+    original_stat = Path.stat
+
+    def stat_fail(self, *args, **kwargs):
+        if self == bad:
+            raise OSError("simulated stat failure")
+        return original_stat(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", stat_fail)
+    # is_file() also calls stat; bypass it so we reach the inner loop.
+    monkeypatch.setattr(Path, "is_file", lambda self: True)
+
+    tagged = _files_with_mtime(tmp_path, "*.jsonl")
+
+    assert len(tagged) == 1
+    assert tagged[0][0] == 0.0
+    assert tagged[0][1] is None
+    assert tagged[0][2] == bad

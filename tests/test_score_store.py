@@ -1,6 +1,7 @@
 """Tests for symphony.score_store — disk-backed score snapshot storage."""
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -143,6 +144,10 @@ class TestInitDefaults:
         store = ScoreStore()
         assert tmp_path in store.root.parents or store.root == tmp_path / ".maestro" / "symphony" / "scores"
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="``~`` expansion on Windows uses USERPROFILE, not HOME; setenv(HOME) is ignored.",
+    )
     def test_expands_user_paths(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("HOME", str(tmp_path))
         store = ScoreStore(root=Path("~/sym-scores"))

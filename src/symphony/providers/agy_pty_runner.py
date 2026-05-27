@@ -453,7 +453,7 @@ def main() -> int:
             sys.stderr.write("agy_pty_runner: taking direct branch\n")
         return _run_direct(argv)
 
-    if debug:
+    if debug:  # pragma: no cover - Windows + native-exe debug branch
         sys.stderr.write("agy_pty_runner: taking ConPTY branch\n")
     try:
         return _run_with_pty(argv)

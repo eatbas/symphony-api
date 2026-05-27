@@ -188,3 +188,37 @@ def test_main_on_posix_always_uses_direct(monkeypatch: pytest.MonkeyPatch) -> No
         ["agy_pty_runner", "/usr/local/bin/agy", "-p", "hi"],
     )
     assert agy_pty_runner.main() == 0
+
+
+def test_run_direct_executes_argv_and_returns_exit_code() -> None:
+    """``_run_direct`` runs the child with stdio inherited and returns its exit code.
+
+    Exercised with the host Python interpreter exiting with code 0 -- the
+    child has no need for a TTY so this works on Windows and POSIX alike.
+    """
+    code = agy_pty_runner._run_direct([sys.executable, "-c", "import sys; sys.exit(0)"])
+    assert code == 0
+
+
+def test_run_direct_propagates_non_zero_exit() -> None:
+    code = agy_pty_runner._run_direct([sys.executable, "-c", "import sys; sys.exit(11)"])
+    assert code == 11
+
+
+def test_main_debug_branch_emits_diagnostics_for_direct_dispatch(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """SYMPHONY_AGY_PTY_DEBUG=1 enables stderr diagnostics on both arms."""
+    monkeypatch.setenv("SYMPHONY_AGY_PTY_DEBUG", "1")
+    monkeypatch.setattr(agy_pty_runner.os, "name", "posix")
+    monkeypatch.setattr(agy_pty_runner, "_run_direct", lambda argv: 0)
+    monkeypatch.setattr(
+        agy_pty_runner.sys,
+        "argv",
+        ["agy_pty_runner", "/usr/local/bin/agy", "-p", "hi"],
+    )
+    assert agy_pty_runner.main() == 0
+    err = capsys.readouterr().err
+    assert "argv=" in err
+    assert "native_exe(" in err
+    assert "taking direct branch" in err

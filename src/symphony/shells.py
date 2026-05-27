@@ -68,7 +68,7 @@ def detect_bash_path(override: str | None = None) -> str:
     """
     if override:
         return override
-    if os.name != "nt":
+    if os.name != "nt":  # pragma: no cover - posix-only branch (Windows test platform)
         return shutil.which("bash") or "bash"
 
     candidates = [  # pragma: no cover - Windows-only Git Bash discovery
@@ -105,7 +105,7 @@ class BashSession:
             return
         kwargs = windows_subprocess_kwargs()
         env = {**os.environ, "PYTHONUTF8": "1"}
-        if os.name != "nt":
+        if os.name != "nt":  # pragma: no cover - posix-only branch (Windows test platform)
             kwargs["start_new_session"] = True
         self.process = await asyncio.create_subprocess_exec(
             self.shell_path,
@@ -162,12 +162,12 @@ class BashSession:
                 self._dispose_process()
                 return
 
-            try:
+            try:  # pragma: no cover - posix-only interrupt path (Windows test platform)
                 os.killpg(process.pid, signal.SIGINT)
             except ProcessLookupError:  # pragma: no cover - race: process exited between checks
                 return
 
-            try:
+            try:  # pragma: no cover - posix-only interrupt path
                 await asyncio.wait_for(process.wait(), timeout=1.0)
                 await self._stop_reader_task()
                 self._dispose_process()
@@ -177,11 +177,11 @@ class BashSession:
 
             try:  # pragma: no cover - SIGKILL fallback after SIGINT timeout
                 os.killpg(process.pid, signal.SIGKILL)
-            except ProcessLookupError:  # pragma: no cover
+            except ProcessLookupError:  # pragma: no cover - SIGKILL fallback (POSIX-only)
                 return
-            await process.wait()  # pragma: no cover
-            await self._stop_reader_task()  # pragma: no cover
-            self._dispose_process()  # pragma: no cover
+            await process.wait()  # pragma: no cover - SIGKILL fallback (POSIX-only)
+            await self._stop_reader_task()  # pragma: no cover - SIGKILL fallback (POSIX-only)
+            self._dispose_process()  # pragma: no cover - SIGKILL fallback (POSIX-only)
 
     async def _kill_windows_process_tree(self, pid: int) -> None:  # pragma: no cover - Windows-only
         """Kill the bash process and its entire child tree with taskkill /T."""
@@ -256,7 +256,7 @@ class BashSession:
                     if buffer:  # pragma: no cover - EOF with trailing partial line is timing-dependent
                         await self._handle_output_line(bytes(buffer))
                     current = self._current_run
-                    if current and not current.future.done():
+                    if current and not current.future.done():  # pragma: no cover - race: bash dies during active run
                         current.future.set_exception(ShellSessionError("bash musician terminated unexpectedly"))
                     break
 

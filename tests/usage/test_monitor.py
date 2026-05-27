@@ -273,6 +273,39 @@ async def test_probe_provider_timeout_returns_not_supported(monkeypatch) -> None
     assert "timed out" in (results[0].note or "")
 
 
+async def test_periodic_loop_runs_at_least_one_probe_and_stops_cleanly() -> None:
+    """Exercises ``_periodic_loop`` body so coverage doesn't depend on
+    the in-process background thread that tests would otherwise have to wait
+    for."""
+    probe_count = 0
+
+    async def counting_get_usage(**_kwargs):
+        nonlocal probe_count
+        probe_count += 1
+        return []
+
+    adapter = MagicMock()
+    adapter.resolve_executable = MagicMock(return_value="claude")
+    adapter.get_usage = counting_get_usage
+
+    manager = _make_manager(
+        providers={InstrumentName.CLAUDE: _FakeProviderConfig()},
+        available={InstrumentName.CLAUDE: True},
+        adapters={InstrumentName.CLAUDE: adapter},
+    )
+    monitor = UsageMonitor(manager, interval_seconds=0.01)
+
+    monitor.start()
+    # Yield enough times for the loop to enter, run probe_all once, and
+    # come back around to the asyncio.sleep call.
+    for _ in range(20):
+        await asyncio.sleep(0)
+    await monitor.stop()
+
+    assert probe_count >= 1
+    assert monitor._task is None
+
+
 async def test_default_adapter_get_usage_returns_not_supported() -> None:
     """The base ProviderAdapter.get_usage stub returns a single not_supported
     snapshot. Cover it directly so coverage doesn't depend on integration."""

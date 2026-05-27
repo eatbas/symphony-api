@@ -41,7 +41,7 @@ symphony = ["ui/*.html", "ui/static/*.css", "ui/static/*.js"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-addopts = "--cov=src/symphony --cov-report=term-missing --cov-fail-under=95 --ignore=tests/ui_e2e"
+addopts = "--cov=src/symphony --cov-report=term-missing --cov-fail-under=100 --ignore=tests/ui_e2e"
 
 [tool.coverage.run]
 source = ["src/symphony"]

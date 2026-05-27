@@ -50,6 +50,45 @@ def test_parse_line_returns_none_when_timestamp_missing() -> None:
     assert _parse_claude_line(obj) is None
 
 
+def test_parse_line_returns_none_when_timestamp_malformed() -> None:
+    """Covers the ``except ValueError`` branch in ``_parse_claude_line``."""
+    obj = {
+        "type": "assistant",
+        "timestamp": "not-an-iso-timestamp",
+        "message": {"usage": {"input_tokens": 1, "output_tokens": 1}},
+    }
+    assert _parse_claude_line(obj) is None
+
+
+def test_parse_line_returns_none_when_message_is_not_a_dict() -> None:
+    obj = {
+        "type": "assistant",
+        "timestamp": "2026-05-26T12:00:00Z",
+        "message": None,
+    }
+    assert _parse_claude_line(obj) is None
+
+
+def test_parse_line_resets_cache_read_when_non_int() -> None:
+    """A truthy non-int ``cache_read_input_tokens`` must be reset to 0."""
+    obj = {
+        "type": "assistant",
+        "timestamp": "2026-05-26T12:00:00Z",
+        "message": {
+            "usage": {
+                "input_tokens": 1,
+                "output_tokens": 2,
+                "cache_creation_input_tokens": 4,
+                "cache_read_input_tokens": "unexpected-string",
+            }
+        },
+    }
+    sample = _parse_claude_line(obj)
+    assert sample is not None
+    # cache_read should not contribute -- total_tokens = 1+2+4+0 = 7.
+    assert sample.counters.total_tokens == 7
+
+
 def test_parse_line_returns_none_when_usage_missing() -> None:
     obj = {"type": "assistant", "timestamp": "2026-05-26T12:00:00Z", "message": {}}
     assert _parse_claude_line(obj) is None

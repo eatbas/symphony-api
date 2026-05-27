@@ -42,6 +42,10 @@ class TestDetectBashPath:
     def test_uses_override_when_provided(self) -> None:
         assert detect_bash_path("/custom/bash") == "/custom/bash"
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="POSIX-only test; on Windows detect_bash_path resolves to bash.exe, not 'bash'.",
+    )
     def test_returns_which_bash_on_posix(self) -> None:
         # On Linux/Mac CI this returns whatever bash is on PATH.
         result = detect_bash_path()

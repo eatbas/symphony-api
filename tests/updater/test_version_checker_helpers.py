@@ -49,8 +49,34 @@ class TestRunCmdSync:
         assert code == -1
         assert output == ""
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="On Windows the helper wraps the command in Git Bash and the "
+        "missing executable surfaces as bash exit 127 rather than the Python "
+        "FileNotFoundError -> -1 fallback. Deterministic equivalent: "
+        "test_returns_minus_one_when_subprocess_raises_file_not_found.",
+    )
     def test_returns_minus_one_when_executable_missing(self) -> None:
         code, output = _run_cmd_sync("/nonexistent/binary-xyz-12345", timeout=5)
+        assert code == -1
+        assert output == ""
+
+    def test_returns_minus_one_when_subprocess_raises_file_not_found(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Direct cover of the ``except FileNotFoundError`` branch.
+
+        Bypasses the Windows-via-Git-Bash wrap (which surfaces 127 instead
+        of -1) by monkey-patching ``_bash_path`` to ``None`` and forcing
+        ``subprocess.run`` to raise.
+        """
+        import subprocess
+
+        monkeypatch.setattr(vc, "_bash_path", None)
+        monkeypatch.setattr(
+            subprocess, "run", lambda *a, **k: (_ for _ in ()).throw(FileNotFoundError())
+        )
+        code, output = _run_cmd_sync("/nonexistent/binary", timeout=5)
         assert code == -1
         assert output == ""
 

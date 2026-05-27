@@ -87,6 +87,26 @@ def test_parse_line_returns_none_for_invalid_timestamp() -> None:
     assert _parse_kimi_line(obj) is None
 
 
+def test_parse_line_returns_none_when_timestamp_is_not_a_string() -> None:
+    """Covers the ``isinstance(raw, str)`` guard in ``_parse_kimi_timestamp``."""
+    obj = {
+        "timestamp": 1717_000_000,  # numeric (epoch) instead of ISO string
+        "usage": {"input_tokens": 1, "output_tokens": 2},
+    }
+    assert _parse_kimi_line(obj) is None
+
+
+def test_parse_line_attaches_utc_to_naive_timestamp() -> None:
+    """Covers the ``tzinfo is None`` fixup in ``_parse_kimi_timestamp``."""
+    obj = {
+        "timestamp": "2026-05-26T12:00:00",  # naive
+        "usage": {"input_tokens": 1, "output_tokens": 2},
+    }
+    sample = _parse_kimi_line(obj)
+    assert sample is not None
+    assert sample.timestamp.tzinfo is not None
+
+
 def test_kimi_sessions_root_honours_env_override(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("KIMI_SHARE_DIR", str(tmp_path / "custom"))
     assert _kimi_sessions_root() == tmp_path / "custom" / "sessions"

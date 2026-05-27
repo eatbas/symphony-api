@@ -55,6 +55,34 @@ def test_parse_line_returns_none_when_output_missing() -> None:
     assert _parse_codex_line(obj) is None
 
 
+def test_parse_line_returns_none_when_usage_block_missing() -> None:
+    """Covers the ``usage is not a dict`` early return in ``_parse_codex_line``."""
+    obj = {"type": "turn.completed", "timestamp": "2026-05-26T12:00:00Z"}
+    assert _parse_codex_line(obj) is None
+
+
+def test_parse_line_returns_none_when_timestamp_malformed() -> None:
+    """Covers the ``except ValueError`` branch in ``_parse_timestamp``."""
+    obj = {
+        "type": "turn.completed",
+        "timestamp": "definitely-not-iso",
+        "usage": {"output_tokens": 3},
+    }
+    assert _parse_codex_line(obj) is None
+
+
+def test_parse_line_attaches_utc_to_naive_timestamp() -> None:
+    """Covers the ``tzinfo is None`` fixup in ``_parse_timestamp``."""
+    obj = {
+        "type": "turn.completed",
+        "timestamp": "2026-05-26T12:00:00",  # no offset
+        "usage": {"input_tokens": 1, "output_tokens": 2},
+    }
+    sample = _parse_codex_line(obj)
+    assert sample is not None
+    assert sample.timestamp.tzinfo is not None
+
+
 def test_parse_line_returns_none_when_timestamp_missing() -> None:
     obj = {
         "type": "turn.completed",

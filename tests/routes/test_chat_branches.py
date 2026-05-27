@@ -1,6 +1,7 @@
 """Branch coverage for routes/chat.py."""
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -33,6 +34,53 @@ def test_websocket_returns_error_and_closes_for_unknown_score(config_path) -> No
         assert exc_info.value.code == 1008
 
 
+def test_websocket_emits_persisted_snapshot_when_handle_evicted(config_path) -> None:
+    """Cover the "handle dropped but snapshot persisted" branch of
+    ``score_websocket`` without depending on the (flaky on Windows) fake-CLI
+    end-to-end flow. We persist a terminal snapshot to the on-disk store and
+    omit any in-memory handle so the route walks the snapshot-fallback path.
+    """
+    from datetime import datetime, timezone
+    from symphony.models import ScoreSnapshot
+
+    app = create_app()
+    snapshot = ScoreSnapshot(
+        score_id="ws-snapshot-only",
+        provider=InstrumentName.CLAUDE,
+        model="opus",
+        mode="new",
+        workspace_path="/tmp/workspace",
+        status=ScoreStatus.COMPLETED,
+        accumulated_text="hello",
+        final_text="hello",
+        provider_session_ref=None,
+        exit_code=0,
+        warnings=[],
+        created_at=datetime.now(timezone.utc).isoformat(),
+        started_at=None,
+        updated_at=datetime.now(timezone.utc).isoformat(),
+        finished_at=datetime.now(timezone.utc).isoformat(),
+    )
+    with TestClient(app) as client:
+        orchestra = app.state.orchestra
+        # Persist directly to the score store so get_score returns None
+        # but get_score_snapshot returns the saved snapshot.
+        orchestra.score_store.save(snapshot)
+        orchestra._scores.pop(snapshot.score_id, None)
+
+        with client.websocket_connect(f"/v1/chat/{snapshot.score_id}/ws") as ws:
+            msg = ws.receive_json()
+            assert msg["type"] == "score_snapshot"
+            assert msg["score"]["score_id"] == snapshot.score_id
+            with pytest.raises(WebSocketDisconnect):
+                ws.receive_json()
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Flaky on Windows where the fake-CLI .sh wrapper races the bash session; "
+    "the deterministic equivalent is test_websocket_emits_persisted_snapshot_when_handle_evicted.",
+)
 def test_websocket_emits_terminal_snapshot_when_handle_dropped(
     config_path, tmp_path: Path
 ) -> None:
