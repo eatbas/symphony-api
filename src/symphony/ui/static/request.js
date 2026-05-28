@@ -33,13 +33,24 @@ function websocketUrl(scoreId) {
   return `${scheme}://${window.location.host}/v1/chat/${scoreId}/ws`;
 }
 
+function formatModelLabel(model) {
+  // OpenRouter-routed models arrive as ``openrouter/<org>/<name>[:free]``.
+  // Strip the routing prefix, surface the :free suffix as a [FREE] chip,
+  // and leave non-OpenRouter ids untouched.
+  if (!model || !model.startsWith("openrouter/")) return model;
+  const stripped = model.slice("openrouter/".length);
+  const isFree = stripped.endsWith(":free");
+  const clean = isFree ? stripped.slice(0, -":free".length) : stripped;
+  return isFree ? `${clean} [FREE]` : clean;
+}
+
 function renderModelOptions() {
   const current = providerSelect.value;
   modelSelect.innerHTML = "";
   for (const model of modelsForProvider(current)) {
     const option = document.createElement("option");
     option.value = model;
-    option.textContent = model;
+    option.textContent = formatModelLabel(model);
     modelSelect.appendChild(option);
   }
 }
@@ -61,7 +72,7 @@ function renderMusicians() {
       const chip = document.createElement("div");
       chip.className = "musician-chip";
       const statusClass = m.ready ? "ok" : "error";
-      chip.innerHTML = `<strong>${m.model}</strong><span class="musician-status ${statusClass}">${m.ready ? "ready" : "down"} · ${m.busy ? "busy" : "idle"} · q=${m.queue_length}</span>`;
+      chip.innerHTML = `<strong>${formatModelLabel(m.model)}</strong><span class="musician-status ${statusClass}">${m.ready ? "ready" : "down"} · ${m.busy ? "busy" : "idle"} · q=${m.queue_length}</span>`;
       items.appendChild(chip);
     }
     group.appendChild(items);
