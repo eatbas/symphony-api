@@ -1,10 +1,10 @@
 # Symphony API
 
-Symphony -- coordinated AI CLI orchestra for **Antigravity**, **Codex**, **Claude**, and **Kimi**.
+Symphony -- coordinated AI CLI orchestra for **Antigravity**, **Codex**, **Claude**, **Kimi**, and **OpenCode** (OpenRouter-backed).
 
 ## What it does
 
-- Starts one warm background bash musician per configured `provider + model`
+- Starts one warm background bash musician per eager `provider + model`; lazy providers (OpenCode/OpenRouter) spawn on first request
 - Accepts API calls over HTTP
 - Runs the matching CLI inside the already-open bash musician
 - Returns a durable score ID immediately (HTTP 202) — poll or connect via WebSocket for results
@@ -38,7 +38,16 @@ Integration guidance is available in `docs/`, and AI agents can start from `/llm
 | **Codex** | `codex` | `gpt-5.4`, `gpt-5.4-mini` | Yes |
 | **Claude** | `claude` | `opus`, `sonnet`, `haiku` | Yes |
 | **Kimi** | `kimi` | `kimi-code/kimi-for-coding` | Yes |
-| **OpenCode** | `opencode` | `glm-5`, `glm-5.1` | Yes |
+| **OpenCode** | `opencode` | live, top 10 free OpenRouter models (rebuilt every 4 h) | Yes |
+
+> **OpenCode (OpenRouter-backed)** — needs `OPENROUTER_API_KEY` in a
+> `.env` file at the repo root (already in `.gitignore`). Get a key from
+> the OpenRouter dashboard. The musician pool is *lazy*: no bash
+> musicians spawn at boot; the first `POST /v1/chat` for a model
+> materialises one. The model list is rebuilt directly from
+> `GET https://openrouter.ai/api/v1/models` on every periodic refresh
+> tick. Free-tier rate limits apply (≈20 req/min, 50 req/day with
+> $0 balance — top up ≥$10 once to raise the daily ceiling).
 
 > **Antigravity** is Google's successor to the Gemini CLI. Install via
 > `curl -fsSL https://antigravity.google/cli/install.sh | bash`. It uses

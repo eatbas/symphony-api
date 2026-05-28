@@ -46,9 +46,21 @@ Running scores can be stopped via `POST /v1/chat/{score_id}/stop`.
 **Usage snapshots** — `GET /v1/usage` returns per-instrument quota and
 consumption snapshots. Two primary windows are reported where the
 underlying CLI exposes them: a 5-hour rolling window and a weekly
-window. Providers without a public quota surface (currently Antigravity
-and OpenCode) still appear with `supported=false` and
-`source="not_supported"` so the response shape stays uniform.
+window. **OpenCode** now surfaces the OpenRouter free-tier rate-limit
+window (rolling `limit` / `usage` / `remaining` in USD-equivalent
+credit units) by calling `GET https://openrouter.ai/api/v1/key` with
+the `OPENROUTER_API_KEY` taken from the project-root `.env`. When the
+key is unset, or the OpenRouter API is unreachable, the OpenCode
+snapshot falls back to `supported=false` with `source="not_supported"`.
+Antigravity remains `not_supported` until a quota API ships upstream.
+
+**OpenCode is OpenRouter-backed.** Symphony rediscovers the live top-10
+free text-output OpenRouter models on every periodic updater tick
+(default 4 h cadence). Models that disappear from the free tier are
+dropped from the pool immediately; their musicians (if any) are torn
+down and in-flight requests on a just-removed model will fail.
+OpenCode musicians are also **lazy-spawned** — no bash process is
+created until the first `POST /v1/chat` for that model.
 
 **Instrument options** — per-request overrides via `provider_options`:
 

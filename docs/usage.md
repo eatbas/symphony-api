@@ -2,11 +2,12 @@
 
 Symphony exposes per-instrument quota / consumption snapshots. Two windows are reported where the underlying CLI surfaces them: a 5-hour rolling window (matching Claude Code's native quota cadence) and a weekly window. Providers without a public quota surface (currently Antigravity) appear in the response with `supported=false` and `source="not_supported"` so consumers see a uniform shape across instruments.
 
-Data is sourced from each CLI's local session JSONL files:
+Data is sourced from each CLI's local session JSONL files (or from a public HTTP API in the OpenCode case):
 
 - Claude Code: `~/.claude/projects/**/*.jsonl`
 - Codex: `~/.codex/sessions/**/*.jsonl`
 - Kimi: `$KIMI_SHARE_DIR/sessions/**/*.jsonl` (defaulting to `~/.kimi/sessions/`)
+- OpenCode: `GET https://openrouter.ai/api/v1/key` using `OPENROUTER_API_KEY` from the project-root `.env`. Returns a rolling-window snapshot (`limit`, `limit_remaining`, `usage`, `is_free_tier`); `source="api"` and `window="rolling"`. Falls back to `not_supported` when the key is unset or the request fails.
 
 Reads are bounded (newest files first, capped per-file and per-probe) and run inside `asyncio.to_thread` so probes never block the event loop. A background refresh runs every 15 minutes while the updater is enabled.
 
