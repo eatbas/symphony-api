@@ -31,6 +31,7 @@ UsageSource = Literal[
     "cli_command",
     "session_log",
     "stream",
+    "api",
     "not_supported",
 ]
 

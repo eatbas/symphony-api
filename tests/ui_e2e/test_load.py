@@ -68,4 +68,4 @@ class TestProviderModelDropdowns:
         console_page.wait_for_timeout(200)
         model_options = console_page.locator("#model option")
         models = [model_options.nth(i).get_attribute("value") for i in range(model_options.count())]
-        assert "glm-5.1" in models
+        assert any(m and m.startswith("openrouter/") and m.endswith(":free") for m in models)

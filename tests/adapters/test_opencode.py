@@ -1,3 +1,5 @@
+import pytest
+
 from symphony.models import ChatMode
 from symphony.providers.base import ParseState
 from symphony.providers.opencode import OpenCodeAdapter
@@ -19,32 +21,44 @@ def test_opencode_new_command_includes_format_json():
     assert "--model" not in command.argv
 
 
-def test_opencode_new_command_includes_model_with_provider_prefix():
+def test_opencode_new_command_passes_openrouter_prefix_through():
     adapter = OpenCodeAdapter()
     command = adapter.build_command(
         executable="opencode",
         mode=ChatMode.NEW,
         prompt="hello",
-        model="glm-5",
+        model="openrouter/qwen/qwen3-coder:free",
         session_ref=None,
         provider_options={},
     )
     assert "--model" in command.argv
-    assert "zai-coding-plan/glm-5" in command.argv
+    assert "openrouter/qwen/qwen3-coder:free" in command.argv
 
 
-def test_opencode_new_command_preserves_existing_provider_prefix():
+def test_opencode_new_command_rejects_unprefixed_model():
     adapter = OpenCodeAdapter()
-    command = adapter.build_command(
-        executable="opencode",
-        mode=ChatMode.NEW,
-        prompt="hello",
-        model="custom-provider/glm-5",
-        session_ref=None,
-        provider_options={},
-    )
-    assert "custom-provider/glm-5" in command.argv
-    assert "zai-coding-plan/custom-provider/glm-5" not in command.argv
+    with pytest.raises(ValueError, match="sub-provider prefix"):
+        adapter.build_command(
+            executable="opencode",
+            mode=ChatMode.NEW,
+            prompt="hello",
+            model="bareword",
+            session_ref=None,
+            provider_options={},
+        )
+
+
+def test_opencode_resume_command_rejects_unprefixed_model():
+    adapter = OpenCodeAdapter()
+    with pytest.raises(ValueError, match="sub-provider prefix"):
+        adapter.build_command(
+            executable="opencode",
+            mode=ChatMode.RESUME,
+            prompt="hello",
+            model="bareword",
+            session_ref="ses-abc-123",
+            provider_options={},
+        )
 
 
 def test_opencode_resume_command_uses_session_flag():
@@ -53,7 +67,7 @@ def test_opencode_resume_command_uses_session_flag():
         executable="opencode",
         mode=ChatMode.RESUME,
         prompt="hello",
-        model="glm-5",
+        model="openrouter/qwen/qwen3-coder:free",
         session_ref="ses-abc-123",
         provider_options={},
     )
@@ -90,7 +104,7 @@ def test_opencode_thinking_mode_can_be_disabled():
 
 def test_opencode_model_option_schema_exposes_thinking_mode():
     adapter = OpenCodeAdapter()
-    schema = adapter.model_option_schema("glm-5")
+    schema = adapter.model_option_schema("openrouter/qwen/qwen3-coder:free")
     assert schema[0]["key"] == "thinking_mode"
     assert schema[0]["default"] == "enabled"
 

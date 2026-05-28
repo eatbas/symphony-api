@@ -64,6 +64,9 @@ def test_usage_endpoint_falls_through_to_not_supported_when_no_session_logs(
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("USERPROFILE", str(tmp_path))
     monkeypatch.setenv("KIMI_SHARE_DIR", str(tmp_path / "kimi-empty"))
+    # OpenCode now probes OpenRouter when a key is set; clear it so the
+    # probe falls back to the historical ``not_supported`` snapshot.
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     app = create_app()
     with TestClient(app) as client:
         response = client.get("/v1/usage")

@@ -82,7 +82,7 @@ default_options = {{ extra_args = [] }}
 [providers.opencode]
 enabled = true
 executable = "{escaped_providers['opencode']}"
-models = ["glm-4.5", "glm-5.1"]
+models = ["openrouter/qwen/qwen3-coder:free", "openrouter/openai/gpt-oss-120b:free"]
 default_options = {{ extra_args = [] }}
 
 [updater]
