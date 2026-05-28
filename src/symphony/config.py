@@ -6,7 +6,16 @@ from pathlib import Path
 import tomllib
 from typing import Any
 
+from dotenv import load_dotenv
+
 from .models import InstrumentName
+
+# Load environment variables from a `.env` file at the working directory
+# (or any ancestor) so secrets such as ``OPENROUTER_API_KEY`` reach the
+# rest of the process and the subprocess environment built by ``shells``.
+# ``override=False`` preserves any value already set in the real
+# environment, which keeps tests and deployment-time overrides authoritative.
+load_dotenv(override=False)
 
 
 @dataclass(slots=True)
@@ -34,6 +43,12 @@ class InstrumentConfig:
     cli_timeout: float = 300.0  # seconds; 0 = no timeout
     idle_timeout: float = 0.0  # seconds without output before assuming CLI is stuck; 0 = no idle timeout
     concurrency: int = 4  # max concurrent musicians per model
+    # When ``lazy`` is True the orchestra skips eager musician boot for
+    # this provider; its pools scale up on first request via the existing
+    # ``acquire_musician`` hot-path.  Used by the OpenRouter-backed
+    # OpenCode adapter so the bash musician fleet does not grow when
+    # nobody is calling the model.
+    lazy: bool = False
 
 
 @dataclass(slots=True)
@@ -55,15 +70,20 @@ class AppConfig:
 
 def _instrument_config(raw: dict[str, Any] | None) -> InstrumentConfig:
     raw = raw or {}
-    models = [str(item) for item in raw.get("models", ["default"]) if str(item).strip()]
+    raw_models = raw.get("models")
+    if raw_models is None:
+        models = ["default"]
+    else:
+        models = [str(item) for item in raw_models if str(item).strip()]
     return InstrumentConfig(
         enabled=bool(raw.get("enabled", True)),
         executable=(str(raw["executable"]).strip() or None) if raw.get("executable") is not None else None,
-        models=models or ["default"],
+        models=models,
         default_options=dict(raw.get("default_options", {})),
         cli_timeout=float(raw.get("cli_timeout", 300.0)),
         idle_timeout=float(raw.get("idle_timeout", 0.0)),
         concurrency=int(raw.get("concurrency", 4)),
+        lazy=bool(raw.get("lazy", False)),
     )
 
 
