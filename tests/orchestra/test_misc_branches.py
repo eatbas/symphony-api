@@ -86,9 +86,7 @@ async def test_build_model_details_dedupes_repeated_musicians(loaded_config) -> 
         assert second is not None and second is not first
         first.busy = False
 
-        details = build_model_details(
-            musicians=manager._all_musicians(), registry=manager.registry
-        )
+        details = build_model_details(pool=manager.musicians, registry=manager.registry)
         opus_entries = [d for d in details if d.provider == InstrumentName.CLAUDE and d.model == "opus"]
         assert len(opus_entries) == 1
 
