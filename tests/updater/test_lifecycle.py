@@ -121,6 +121,48 @@ async def test_periodic_loop_swallows_errors_and_continues(loaded_config) -> Non
 
 
 @pytest.mark.asyncio
+async def test_periodic_loop_swallows_refresh_errors(
+    loaded_config, monkeypatch
+) -> None:
+    """The OpenRouter refresh step must not kill the periodic loop when
+    it raises — the catch-and-log branch is the dedicated guard for
+    rare transient failures inside discovery."""
+    manager = Orchestra(loaded_config)
+    updater = CLIUpdater(
+        manager=manager,
+        config=UpdaterConfig(enabled=True, interval_hours=24, auto_update=False),
+    )
+
+    async def fake_refresh(_orchestra):
+        raise RuntimeError("simulated refresh boom")
+
+    monkeypatch.setattr(
+        "symphony.updater.discovery_refresh.refresh_openrouter_models",
+        fake_refresh,
+    )
+
+    call_count = {"n": 0}
+
+    async def fake_check():
+        call_count["n"] += 1
+        if call_count["n"] == 1:
+            return []
+        await asyncio.sleep(60)
+        return []
+
+    updater.check_and_update_all = fake_check  # type: ignore[method-assign]
+    try:
+        start(updater)
+        for _ in range(40):
+            if call_count["n"] >= 1:
+                break
+            await asyncio.sleep(0.05)
+        assert call_count["n"] >= 1
+    finally:
+        await stop(updater)
+
+
+@pytest.mark.asyncio
 async def test_periodic_loop_logs_each_status(loaded_config) -> None:
     """Drive the for-loop body in periodic_loop (line 39) by returning a
     non-empty list of status results."""

@@ -33,12 +33,20 @@ async def periodic_loop(updater: "CLIUpdater") -> None:
     """Long-running task: re-runs ``check_and_update_all`` every
     ``interval_hours``. Errors are caught so a transient network blip
     can't kill the loop."""
+    from .discovery_refresh import refresh_openrouter_models
+
     while True:
         try:
             for status in await updater.check_and_update_all():
                 _log_status(status)
         except Exception:
             logger.exception("Error during periodic CLI version check")
+
+        try:
+            await refresh_openrouter_models(updater.manager)
+        except Exception:
+            logger.exception("Error during periodic OpenRouter refresh")
+
         await asyncio.sleep(updater.config.interval_hours * 3600)
 
 
