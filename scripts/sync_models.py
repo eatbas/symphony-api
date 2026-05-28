@@ -55,9 +55,6 @@ def generate_label(model: str) -> str:
     overrides: dict[str, str] = {
         "kimi-code/kimi-for-coding": "Kimi Code",
         "grok-code-fast-1": "Grok Code Fast",
-        "glm-4.5v": "GLM 4.5V",
-        "glm-4.6v": "GLM 4.6V",
-        "glm-4.7-flashx": "GLM 4.7 FlashX",
     }
     if model in overrides:
         return overrides[model]
@@ -69,7 +66,6 @@ def generate_label(model: str) -> str:
 
     # Prefix mappings.
     prefix_map = {
-        "glm-": "GLM ",
         "gpt-": "GPT-",
         "gemini-": "Gemini ",
         "claude-": "Claude ",

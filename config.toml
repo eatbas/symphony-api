@@ -62,12 +62,29 @@ cli_timeout = 0
 idle_timeout = 0
 
 [providers.opencode]
+# Backed by OpenRouter's free tier — Symphony rediscovers the live
+# top-10 free text-output models on each periodic refresh.  Leave
+# ``models`` empty here; discovery populates it at start-up.
 enabled = true
 executable = ""
-models = ["glm-5-turbo", "glm-5.1", "glm-5v-turbo"]
+models = [
+  "openrouter/deepseek/deepseek-v4-flash:free",
+  "openrouter/qwen/qwen3-coder:free",
+  "openrouter/nvidia/nemotron-3-super-120b-a12b:free",
+  "openrouter/google/gemma-4-26b-a4b-it:free",
+  "openrouter/google/gemma-4-31b-it:free",
+  "openrouter/moonshotai/kimi-k2.6:free",
+  "openrouter/poolside/laguna-m.1:free",
+  "openrouter/poolside/laguna-xs.2:free",
+  "openrouter/qwen/qwen3-next-80b-a3b-instruct:free",
+  "openrouter/nvidia/nemotron-3-nano-30b-a3b:free",
+]
 default_options = { extra_args = [] }
 cli_timeout = 0
 idle_timeout = 0
+# OpenRouter free models share one global rate limit per API key; lazy
+# spawn keeps idle musicians off the boot path until first request.
+lazy = true
 
 [updater]
 enabled = true

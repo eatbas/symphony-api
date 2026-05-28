@@ -65,17 +65,20 @@ cli_timeout = 0
 idle_timeout = 0
 
 [providers.opencode]
+# OpenCode is routed to OpenRouter's free tier; the live top-10
+# free text-output models are rediscovered on each periodic refresh,
+# so this list stays empty unless you want to pin a specific subset.
+# Models, when listed, must carry an explicit sub-provider prefix
+# (e.g. ``openrouter/qwen/qwen3-coder:free``).
 enabled = true
 executable = ""
-models = [
-  "glm-5",
-  "glm-5-turbo",
-  "glm-5.1",
-  "glm-5v-turbo",
-]
+models = []
 default_options = { extra_args = [] }
 cli_timeout = 0
 idle_timeout = 0
+# ``lazy = true`` skips eager musician boot for this provider; pools
+# scale up only when the first request for a model arrives.
+lazy = true
 
 [updater]
 enabled = true
