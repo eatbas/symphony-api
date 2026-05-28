@@ -1,41 +1,55 @@
 import { AnimatedSection } from "./AnimatedSection";
 
+interface ModelChip {
+  label: string;
+  isFree?: boolean;
+}
+
 interface Provider {
   name: string;
   cli: string;
-  models: string[];
+  models: ModelChip[];
   resume: boolean;
+}
+
+function chip(label: string, isFree = false): ModelChip {
+  return { label, isFree };
 }
 
 const PROVIDERS: Provider[] = [
   {
     name: "Antigravity",
     cli: "agy",
-    models: ["gemini-3.5-flash", "gemini-3.1-pro"],
+    models: [chip("gemini-3.5-flash"), chip("gemini-3.1-pro")],
     resume: false,
   },
   {
     name: "Codex",
     cli: "codex",
-    models: ["gpt-5.4", "gpt-5.4-mini"],
+    models: [chip("gpt-5.4"), chip("gpt-5.4-mini")],
     resume: true,
   },
   {
     name: "Claude",
     cli: "claude",
-    models: ["opus", "sonnet", "haiku"],
+    models: [chip("opus"), chip("sonnet"), chip("haiku")],
     resume: true,
   },
   {
     name: "Kimi",
     cli: "kimi",
-    models: ["kimi-code", "kimi-for-coding"],
+    models: [chip("kimi-code"), chip("kimi-for-coding")],
     resume: true,
   },
   {
-    name: "OpenCode",
+    name: "OpenCode · OpenRouter",
     cli: "opencode",
-    models: ["glm-5", "glm-5.1"],
+    models: [
+      chip("qwen3-coder", true),
+      chip("deepseek-v4-flash", true),
+      chip("nemotron-3-super-120b", true),
+      chip("+ live top-10"),
+    ],
     resume: true,
   },
 ];
@@ -73,10 +87,16 @@ export function Providers() {
                 <div className="mt-4 flex flex-wrap gap-1.5">
                   {provider.models.map((model) => (
                     <span
-                      key={model}
-                      className="rounded-md bg-neutral-950 px-2.5 py-1 text-xs font-medium text-white"
+                      key={model.label}
+                      className={
+                        "rounded-md px-2.5 py-1 text-xs font-medium " +
+                        (model.isFree
+                          ? "bg-emerald-600 text-white"
+                          : "bg-neutral-950 text-white")
+                      }
                     >
-                      {model}
+                      {model.label}
+                      {model.isFree ? " · FREE" : ""}
                     </span>
                   ))}
                 </div>
