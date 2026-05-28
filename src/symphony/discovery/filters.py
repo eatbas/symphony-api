@@ -28,19 +28,3 @@ def filter_codex(models: list[str]) -> list[str]:
         else:
             result.append(m)
     return sorted(result)
-
-
-def filter_opencode(models: list[str]) -> list[str]:
-    """Keep only the latest major GLM generation."""
-    max_major = 0
-    for m in models:
-        match = re.match(r"glm-(\d+)", m)
-        if match:
-            max_major = max(max_major, int(match.group(1)))
-
-    if max_major == 0:
-        return models
-
-    return sorted(
-        m for m in models if re.match(rf"glm-{max_major}", m)
-    )

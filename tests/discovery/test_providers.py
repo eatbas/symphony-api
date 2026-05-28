@@ -311,73 +311,80 @@ class TestDiscoverKimi:
 class TestDiscoverOpencode:
     """Coverage for ``_discover_opencode``.
 
-    The real CLI is not assumed to be on the developer's PATH for the unit
-    tests below -- ``shutil.which`` and ``subprocess.run`` are both
-    monkey-patched.
+    OpenCode discovery now delegates to the OpenRouter catalogue
+    fetcher; the tests below verify the integration point by patching
+    the async discoverer to return a fixed list (success), ``None``
+    (network failure), or to raise (defensive event-loop fallback).
     """
 
-    def test_returns_none_when_opencode_not_on_path(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setattr(providers_mod.shutil, "which", lambda _name: None)
-        assert _discover_opencode() is None
+    def test_returns_openrouter_selection(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        async def fake_discover() -> list[str] | None:
+            return ["openrouter/qwen/qwen3-coder:free", "openrouter/openai/gpt-oss-120b:free"]
 
-    def test_returns_none_when_subprocess_times_out(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """The CLI subprocess raising ``TimeoutExpired`` must be caught."""
-        import subprocess as _subprocess
-
-        monkeypatch.setattr(providers_mod.shutil, "which", lambda _name: "/usr/bin/opencode")
-
-        def boom(*_args, **_kwargs):
-            raise _subprocess.TimeoutExpired(cmd="opencode models", timeout=5)
-
-        monkeypatch.setattr(providers_mod.subprocess, "run", boom)
-        assert _discover_opencode() is None
-
-    def test_returns_none_when_subprocess_raises_os_error(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setattr(providers_mod.shutil, "which", lambda _name: "/usr/bin/opencode")
-
-        def boom(*_args, **_kwargs):
-            raise OSError("permission denied")
-
-        monkeypatch.setattr(providers_mod.subprocess, "run", boom)
-        assert _discover_opencode() is None
-
-    def test_filters_and_strips_zai_coding_plan_prefix(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        from types import SimpleNamespace
-
-        monkeypatch.setattr(providers_mod.shutil, "which", lambda _name: "/usr/bin/opencode")
-        stdout = (
-            "anthropic/claude-3\n"
-            "zai-coding-plan/glm-4.5\n"
-            "zai-coding-plan/glm-5\n"
-            "zai-coding-plan/glm-5-turbo\n"
-        )
         monkeypatch.setattr(
-            providers_mod.subprocess,
-            "run",
-            lambda *_a, **_k: SimpleNamespace(stdout=stdout, returncode=0),
+            "symphony.discovery.openrouter.discover_openrouter_free_models",
+            fake_discover,
         )
-        # filter_opencode keeps only the latest major version (5).
-        assert _discover_opencode() == ["glm-5", "glm-5-turbo"]
+        assert _discover_opencode() == [
+            "openrouter/qwen/qwen3-coder:free",
+            "openrouter/openai/gpt-oss-120b:free",
+        ]
 
-    def test_returns_none_when_no_zai_models_found(
+    def test_returns_none_when_discoverer_returns_none(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from types import SimpleNamespace
+        async def fake_discover() -> list[str] | None:
+            return None
 
-        monkeypatch.setattr(providers_mod.shutil, "which", lambda _name: "/usr/bin/opencode")
         monkeypatch.setattr(
-            providers_mod.subprocess,
-            "run",
-            lambda *_a, **_k: SimpleNamespace(
-                stdout="anthropic/claude-3\nopenai/gpt-5\n", returncode=0
-            ),
+            "symphony.discovery.openrouter.discover_openrouter_free_models",
+            fake_discover,
         )
         assert _discover_opencode() is None
+
+    def test_runs_inside_active_loop_via_new_loop_fallback(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """When ``asyncio.run`` raises (e.g. nested-loop scenarios) the
+        function must fall back to a fresh event loop."""
+
+        calls = {"asyncio_run": 0, "new_loop": 0}
+        original_run = providers_mod.asyncio.run
+
+        def fake_run(coro):
+            calls["asyncio_run"] += 1
+            coro.close()
+            raise RuntimeError("asyncio.run() cannot be called from a running event loop")
+
+        async def fake_discover() -> list[str] | None:
+            return ["openrouter/x/y:free"]
+
+        monkeypatch.setattr(providers_mod.asyncio, "run", fake_run)
+        monkeypatch.setattr(
+            "symphony.discovery.openrouter.discover_openrouter_free_models",
+            fake_discover,
+        )
+
+        class _LoopProxy:
+            def __init__(self):
+                self._inner = original_run
+
+            def run_until_complete(self, coro):
+                calls["new_loop"] += 1
+                # Drive the coroutine to completion synchronously.
+                try:
+                    coro.send(None)
+                except StopIteration as stop:
+                    return stop.value
+                return None
+
+            def close(self) -> None:
+                return None
+
+        monkeypatch.setattr(
+            providers_mod.asyncio,
+            "new_event_loop",
+            lambda: _LoopProxy(),
+        )
+        assert _discover_opencode() == ["openrouter/x/y:free"]
+        assert calls == {"asyncio_run": 1, "new_loop": 1}

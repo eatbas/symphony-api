@@ -1,7 +1,7 @@
 """Tests for discovery/filters.py."""
 from __future__ import annotations
 
-from symphony.discovery.filters import filter_codex, filter_opencode
+from symphony.discovery.filters import filter_codex
 
 
 def test_filter_codex_keeps_gpt_5_2_and_above() -> None:
@@ -32,23 +32,3 @@ def test_filter_codex_handles_implicit_minor_zero() -> None:
 
 def test_filter_codex_returns_empty_for_empty_input() -> None:
     assert filter_codex([]) == []
-
-
-def test_filter_opencode_keeps_latest_major_only() -> None:
-    """The filter must keep only the highest GLM major version present."""
-    assert filter_opencode(["glm-4.5", "glm-5", "glm-5.1", "glm-5-turbo"]) == [
-        "glm-5",
-        "glm-5-turbo",
-        "glm-5.1",
-    ]
-
-
-def test_filter_opencode_returns_input_unchanged_when_no_glm_prefix() -> None:
-    """If none of the entries match the ``glm-N`` pattern, return the list
-    verbatim -- covers the ``max_major == 0`` early-return branch."""
-    arbitrary = ["zai-coding-plan/special", "another"]
-    assert filter_opencode(arbitrary) == arbitrary
-
-
-def test_filter_opencode_returns_empty_for_empty_input() -> None:
-    assert filter_opencode([]) == []

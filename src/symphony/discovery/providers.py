@@ -5,13 +5,15 @@ discovery is not possible (CLI not installed, cache missing, etc.).
 Returning ``None`` signals the caller to keep the existing config.toml
 models.
 
-Discovery is fully local — no API keys or tokens required.  CLIs
-installed via npm are parsed for their embedded model catalogues;
-CLIs that expose a ``models`` subcommand are queried directly; and
-CLIs that cache model info locally have those caches read.
+Most discoveries are fully local — npm-installed CLIs are parsed for
+their embedded model catalogues and locally cached model lists are
+read directly.  OpenCode is the exception: it fetches OpenRouter's
+public free-tier catalogue over HTTPS via
+:mod:`symphony.discovery.openrouter`.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -21,7 +23,7 @@ from pathlib import Path
 
 from ..models import InstrumentName
 from ..shells import windows_subprocess_kwargs
-from .filters import filter_codex, filter_opencode
+from .filters import filter_codex
 
 logger = logging.getLogger("symphony.discovery")
 
@@ -224,34 +226,28 @@ def _discover_kimi() -> list[str] | None:
 
 
 def _discover_opencode() -> list[str] | None:
-    """Run ``opencode models`` and return zai-coding-plan (GLM) model IDs.
+    """Discover OpenCode-routable models from OpenRouter's free tier.
 
-    Only includes ``zai-coding-plan/`` models.  The prefix is stripped
-    because the adapter re-adds it at runtime.
+    Delegates to :mod:`symphony.discovery.openrouter`, which fetches
+    OpenRouter's public catalogue, keeps text-only ``:free`` models, and
+    returns the top ten ranked by context length (descending) and id
+    (ascending) as ``openrouter/<id>`` strings.  Returns ``None`` when the
+    network is unreachable or the response cannot be parsed, signalling
+    the caller to keep the existing config.toml models.
     """
-    exe = shutil.which("opencode")
-    if exe is None:
-        return None
+    from .openrouter import discover_openrouter_free_models
 
     try:
-        result = subprocess.run(
-            [exe, "models"],
-            capture_output=True,
-            text=True,
-            timeout=_TIMEOUT,
-            **windows_subprocess_kwargs(),
-        )
-    except (subprocess.TimeoutExpired, OSError) as exc:
-        logger.warning("opencode models failed: %s", exc)
-        return None
-
-    models: list[str] = []
-    for line in result.stdout.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("zai-coding-plan/"):
-            models.append(stripped.removeprefix("zai-coding-plan/"))
-
-    return filter_opencode(models) if models else None
+        return asyncio.run(discover_openrouter_free_models())
+    except RuntimeError:
+        # ``asyncio.run`` refuses to nest inside an already running loop;
+        # discovery callers are synchronous today, but this guard keeps
+        # the function usable from async contexts in the future.
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(discover_openrouter_free_models())
+        finally:
+            loop.close()
 
 
 # ---------------------------------------------------------------------------
