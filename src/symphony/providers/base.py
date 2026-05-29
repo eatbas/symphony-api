@@ -7,15 +7,12 @@ import shlex
 import shutil
 import subprocess
 import uuid
-from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from ..models import ChatMode, InstrumentName
 from ..shells import to_bash_path, windows_subprocess_kwargs
-from ..usage.models import UsageSnapshot
 
 
 _VERSION_PATTERN = re.compile(r"\d+\.\d+")
@@ -176,32 +173,6 @@ class ProviderAdapter:
 
     def model_option_schema(self, model: str) -> list[dict[str, Any]]:
         return []
-
-    async def get_usage(
-        self,
-        *,
-        executable: str,
-        models: list[str],
-        musician_lookup: Callable[[InstrumentName], Any | None],
-        run_subprocess: Callable[..., Awaitable[tuple[int, str]]],
-        now: datetime,
-    ) -> list[UsageSnapshot]:
-        """Return usage snapshots for this provider.
-
-        Default implementation reports the provider as ``not_supported``.
-        Concrete adapters override this to surface real quota / consumption
-        data, either by invoking a CLI command through *musician_lookup* /
-        *run_subprocess* or by parsing local session logs.
-        """
-        return [
-            UsageSnapshot(
-                provider=self.name,
-                supported=False,
-                source="not_supported",
-                note=f"{self.name.value}: usage probe not implemented.",
-                as_of=now.isoformat(),
-            )
-        ]
 
     def make_shell_script(self, workspace_path: str, command: CommandSpec) -> str:
         workspace = shlex.quote(to_bash_path(workspace_path))
