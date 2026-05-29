@@ -13,9 +13,20 @@ _VERSION_RE = re.compile(r"(\d+\.\d+\.\d+)")
 @dataclass(slots=True)
 class CLIPackageInfo:
     provider: InstrumentName
-    manager: str          # "npm", "uv", or "native"
-    package: str          # npm/PyPI package name
-    update_cmd: str = ""  # Native CLI update command (e.g. "claude update")
+    manager: str           # "npm", "uv", or "native"
+    package: str           # npm/PyPI package name
+    update_cmd: str = ""   # Native CLI update command (e.g. "claude update")
+    manifest_url: str = "" # Release-manifest URL template for CLIs not on
+    #                        npm/PyPI; ``{platform}`` is resolved at runtime.
+
+
+# Antigravity is distributed as a flat native binary (not on npm/PyPI). Its
+# install script and `agy update` both pull from this auto-updater service,
+# which serves a per-platform JSON manifest exposing the latest ``version``.
+_ANTIGRAVITY_MANIFEST_URL = (
+    "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app"
+    "/manifests/{platform}.json"
+)
 
 
 PACKAGE_REGISTRY: dict[str, CLIPackageInfo] = {
@@ -25,10 +36,14 @@ PACKAGE_REGISTRY: dict[str, CLIPackageInfo] = {
         InstrumentName.ANTIGRAVITY,
         "native",
         "agy",
-        # Antigravity has no `agy update` subcommand and no package-manager
-        # equivalent. The sanctioned upgrade path is re-running the install
-        # script, which is idempotent and refreshes ~/.local/bin/agy.
-        "bash -c 'curl -fsSL https://antigravity.google/cli/install.sh | bash'",
+        # Antigravity ships a native ``agy update`` subcommand — the curl
+        # install script is not an upgrade path (it no-ops when the binary
+        # already exists, and its `uname -s` check rejects Windows outright).
+        "agy update",
+        # ``agy`` is not published to npm (``npm view agy`` resolves to an
+        # unrelated 0.0.0 placeholder), so the latest version is read from
+        # the auto-updater platform manifest instead.
+        manifest_url=_ANTIGRAVITY_MANIFEST_URL,
     ),
     "kimi": CLIPackageInfo(InstrumentName.KIMI, "uv", "kimi-cli"),
     "opencode": CLIPackageInfo(InstrumentName.OPENCODE, "native", "opencode-ai", "opencode upgrade"),

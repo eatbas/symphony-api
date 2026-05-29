@@ -138,6 +138,63 @@ class TestGetLatestPypiVersion:
 
 
 # ---------------------------------------------------------------------------
+# _manifest_platform / _get_latest_manifest_version
+# ---------------------------------------------------------------------------
+
+
+class TestManifestPlatform:
+    @pytest.mark.parametrize(
+        ("system", "machine", "expected"),
+        [
+            ("Windows", "AMD64", "windows_amd64"),
+            ("Darwin", "arm64", "darwin_arm64"),
+            ("Linux", "x86_64", "linux_amd64"),
+            ("Linux", "aarch64", "linux_arm64"),
+            ("Plan9", "sparc64", "linux_amd64"),  # unknown OS + arch fall back
+        ],
+    )
+    def test_resolves_host_to_manifest_key(
+        self, monkeypatch: pytest.MonkeyPatch, system: str, machine: str, expected: str
+    ) -> None:
+        monkeypatch.setattr(vc.platform, "system", lambda: system)
+        monkeypatch.setattr(vc.platform, "machine", lambda: machine)
+        assert vc._manifest_platform() == expected
+
+
+@pytest.mark.asyncio
+class TestGetLatestManifestVersion:
+    async def test_returns_version_on_success(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert "/manifests/" in str(request.url)
+            return httpx.Response(200, json={"version": "1.0.3", "url": "x", "sha512": "y"})
+
+        _patch_httpx_client(monkeypatch, httpx.MockTransport(handler))
+        version = await vc._get_latest_manifest_version("https://svc/manifests/{platform}.json")
+        assert version == "1.0.3"
+
+    async def test_returns_none_on_http_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        def handler(_request: httpx.Request) -> httpx.Response:
+            return httpx.Response(404, text="not found")
+
+        _patch_httpx_client(monkeypatch, httpx.MockTransport(handler))
+        assert await vc._get_latest_manifest_version("https://svc/{platform}.json") is None
+
+    async def test_returns_none_on_connection_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        def handler(_request: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectError("down")
+
+        _patch_httpx_client(monkeypatch, httpx.MockTransport(handler))
+        assert await vc._get_latest_manifest_version("https://svc/{platform}.json") is None
+
+    async def test_returns_none_when_version_missing(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        def handler(_request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json={"url": "x"})
+
+        _patch_httpx_client(monkeypatch, httpx.MockTransport(handler))
+        assert await vc._get_latest_manifest_version("https://svc/{platform}.json") is None
+
+
+# ---------------------------------------------------------------------------
 # get_current_version
 # ---------------------------------------------------------------------------
 
@@ -387,3 +444,29 @@ async def test_get_latest_version_runs_subprocess_when_no_musician(loaded_config
         manager=manager, runner=fake_runner, pkg_info=_info(manager="npm")
     )
     assert version == "1.0.0"
+
+
+@pytest.mark.asyncio
+async def test_get_latest_version_uses_manifest_when_configured(loaded_config) -> None:
+    """A pkg_info carrying ``manifest_url`` bypasses npm/subprocess entirely."""
+    manager = Orchestra(loaded_config)
+    pkg = CLIPackageInfo(
+        provider=InstrumentName.ANTIGRAVITY,
+        manager="native",
+        package="agy",
+        update_cmd="agy update",
+        manifest_url="https://svc/manifests/{platform}.json",
+    )
+
+    async def fake_runner(*args, timeout=60):
+        raise AssertionError("manifest path must not touch the subprocess runner")
+
+    with patch(
+        "symphony.updater.version_checker._get_latest_manifest_version",
+        AsyncMock(return_value="1.0.3"),
+    ) as mock_manifest:
+        version = await get_latest_version(
+            manager=manager, runner=fake_runner, pkg_info=pkg
+        )
+    assert version == "1.0.3"
+    mock_manifest.assert_awaited_once_with("https://svc/manifests/{platform}.json")

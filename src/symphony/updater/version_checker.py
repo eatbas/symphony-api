@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import platform
 import shlex
 import subprocess
 from collections.abc import Awaitable, Callable
@@ -77,6 +78,44 @@ async def _get_latest_pypi_version(package: str) -> str | None:
         return None
 
 
+_MANIFEST_OS = {"Windows": "windows", "Darwin": "darwin", "Linux": "linux"}
+
+
+def _manifest_platform() -> str:
+    """Resolve the host platform to a release-manifest key (``<os>_<arch>``).
+
+    Mirrors the naming used by the Antigravity install script: the OS is
+    one of ``windows``/``darwin``/``linux`` and the architecture is
+    normalised to ``amd64`` or ``arm64``. Unknown values fall back to the
+    most common desktop target so the lookup degrades gracefully rather
+    than aiming at a non-existent manifest.
+    """
+    os_key = _MANIFEST_OS.get(platform.system(), "linux")
+    arch = "arm64" if platform.machine().lower() in ("arm64", "aarch64") else "amd64"
+    return f"{os_key}_{arch}"
+
+
+async def _get_latest_manifest_version(manifest_url: str) -> str | None:
+    """Fetch the latest version from a platform release manifest.
+
+    The Antigravity auto-updater serves a per-platform JSON document with
+    a ``version`` field. ``agy`` has no npm/PyPI package, so this manifest
+    is the authoritative source for the latest available version. The URL
+    may contain a ``{platform}`` placeholder, resolved to the host's
+    ``<os>_<arch>`` key (e.g. ``windows_amd64``).
+    """
+    url = manifest_url.format(platform=_manifest_platform())
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            version = resp.json().get("version")
+    except Exception:
+        logger.debug("Manifest lookup failed for %s", url)
+        return None
+    return _parse_version(str(version)) if version else None
+
+
 async def get_current_version(
     *,
     manager: Orchestra,
@@ -104,6 +143,11 @@ async def get_current_version(
 
 
 async def get_latest_version(*, manager: Orchestra, runner: RunCmd, pkg_info: CLIPackageInfo) -> str | None:
+    # CLIs distributed outside npm/PyPI (e.g. Antigravity) expose a release
+    # manifest instead of a package-registry entry. This is a plain HTTP
+    # fetch, so it needs neither a musician shell nor a subprocess.
+    if pkg_info.manifest_url:
+        return await _get_latest_manifest_version(pkg_info.manifest_url)
     musician = manager.get_idle_musician(pkg_info.provider)
     if musician is not None and musician.ready:
         try:

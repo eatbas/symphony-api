@@ -74,15 +74,20 @@ class TestPackageRegistry:
         assert info.package == "kimi-cli"
         assert info.update_cmd == ""
 
-    def test_antigravity_reinvokes_install_script(self):
+    def test_antigravity_native_update_via_manifest(self):
         info = PACKAGE_REGISTRY["agy"]
         assert info.manager == "native"
         assert info.package == "agy"
         assert info.provider == InstrumentName.ANTIGRAVITY
-        # No `agy update` subcommand exists upstream; re-running the
-        # curl installer is the sanctioned upgrade path.
-        assert "antigravity.google/cli/install.sh" in info.update_cmd
-        assert info.update_cmd.startswith("bash -c ")
+        # Antigravity ships a native ``agy update`` subcommand; the curl
+        # install script is not an upgrade path (it no-ops when the binary
+        # exists and rejects Windows outright).
+        assert info.update_cmd == "agy update"
+        # ``agy`` is not on npm, so the latest version is read from the
+        # auto-updater platform manifest.
+        assert "{platform}" in info.manifest_url
+        assert info.manifest_url.endswith(".json")
+        assert "antigravity-cli-auto-updater" in info.manifest_url
 
 
 @pytest.fixture()
