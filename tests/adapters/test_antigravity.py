@@ -312,3 +312,40 @@ async def test_before_invocation_releases_lock_on_write_failure(
     with pytest.raises(OSError):
         await adapter.before_invocation("gemini-3.5-flash", "C:/proj")
     assert not adapter._settings_lock.locked()
+
+
+def test_normalise_workspace_returns_empty_path_unchanged() -> None:
+    """Covers the ``not path`` short-circuit in ``_normalise_workspace``."""
+    assert AntigravityAdapter._normalise_workspace("") == ""
+
+
+def test_normalise_workspace_converts_msys_to_windows(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Covers the MSYS-to-Windows conversion branch."""
+    monkeypatch.setattr(antigravity_module.os, "name", "nt")
+    monkeypatch.setattr(antigravity_module.os, "sep", "\\")
+    assert AntigravityAdapter._normalise_workspace("/c/Users/eren") == "C:\\Users\\eren"
+
+
+def test_normalise_workspace_passes_through_non_matching_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A native Windows path lacking the MSYS prefix is returned verbatim."""
+    monkeypatch.setattr(antigravity_module.os, "name", "nt")
+    assert AntigravityAdapter._normalise_workspace("C:\\Users\\eren") == "C:\\Users\\eren"
+
+
+def test_write_settings_resets_non_dict_existing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If settings.json exists but contains a JSON array, the writer must
+    discard it and start from a fresh dict."""
+    settings_path = tmp_path / "settings.json"
+    settings_path.write_text("[]", encoding="utf-8")  # JSON, but not a dict
+    monkeypatch.setattr(antigravity_module, "_SETTINGS_PATH", settings_path)
+
+    AntigravityAdapter._write_settings("Some Label", "C:\\workspace")
+
+    written = json.loads(settings_path.read_text(encoding="utf-8"))
+    assert isinstance(written, dict)
+    assert written.get("model") == "Some Label"
+    assert "C:\\workspace" in written.get("trustedWorkspaces", [])
