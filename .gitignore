@@ -28,3 +28,4 @@ frontend/web/dist/
 *.log
 *.log.*
 logs/
+.claude/
