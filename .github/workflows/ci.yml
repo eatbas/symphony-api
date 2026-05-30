@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel superseded runs on the same ref to save runner minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests (windows, py${{ matrix.python-version }})
+    # Symphony has Windows-specific code paths (Git Bash musicians, ConPTY,
+    # taskkill, MSYS path conversion); the 100% coverage gate is validated on
+    # Windows, so CI runs there. Git Bash is preinstalled on windows-latest.
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install package and dev dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      # ``pytest`` reads addopts from pyproject.toml: coverage with
+      # --cov-fail-under=100 and --ignore=tests/ui_e2e (the Playwright suite,
+      # which needs browser binaries, is excluded from the gate).
+      - name: Run tests with coverage gate
+        run: python -m pytest
