@@ -42,7 +42,6 @@ class ClaudeAdapter(ProviderAdapter):
             # non-interactively from a sandbox bash, so the prompts
             # would otherwise stall the run.
             "--dangerously-skip-permissions",
-            "--enable-auto-mode",
             "--no-chrome",
             "--session-id",
             session_ref,
@@ -62,7 +61,6 @@ class ClaudeAdapter(ProviderAdapter):
             "--output-format",
             "stream-json",
             "--dangerously-skip-permissions",
-            "--enable-auto-mode",
             "--no-chrome",
             "--resume",
             session_ref,
@@ -101,12 +99,11 @@ class ClaudeAdapter(ProviderAdapter):
         return ("low", "medium", "high")
 
     def _apply_max_turns(self, argv: list[str], provider_options: dict) -> None:
-        raw = provider_options.get("max_turns")
-        if raw is None:
-            return
-        if isinstance(raw, bool) or not isinstance(raw, int) or raw <= 0:
-            raise ValueError("provider_options.max_turns must be a positive integer")
-        argv.extend(["--max-turns", str(raw)])
+        # claude CLI >= 2.1.x no longer accepts --max-turns; emitting it
+        # aborts the run with a non-zero exit. Kept for backwards
+        # compatibility but intentionally a no-op so callers setting
+        # provider_options.max_turns cannot reintroduce an unknown flag.
+        return None
 
     def parse_output_line(self, line: str, state: ParseState) -> list[dict[str, object]]:
         obj = self._parse_json_or_warn(line, state)

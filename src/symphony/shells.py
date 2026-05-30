@@ -104,7 +104,10 @@ class BashSession:
         if self.process and self.process.returncode is None:
             return
         kwargs = windows_subprocess_kwargs()
-        env = {**os.environ, "PYTHONUTF8": "1"}
+        # IS_SANDBOX lets the claude CLI accept --dangerously-skip-
+        # permissions while the symphony service runs as root; without
+        # it the CLI aborts ("cannot be used with root/sudo privileges").
+        env = {**os.environ, "PYTHONUTF8": "1", "IS_SANDBOX": "1"}
         if os.name != "nt":  # pragma: no cover - posix-only branch (Windows test platform)
             kwargs["start_new_session"] = True
         self.process = await asyncio.create_subprocess_exec(
