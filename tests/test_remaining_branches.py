@@ -189,32 +189,30 @@ async def test_runner_swallows_task_done_value_error(loaded_config) -> None:
 
 
 # ---------------------------------------------------------------------------
-# claude.py:103 — max_turns validation raises for non-positive ints
+# claude.py — max_turns is a deliberate no-op on claude CLI >= 2.1.x
+# (the flag was removed upstream and emitting it aborts the run)
 # ---------------------------------------------------------------------------
 
 
-def test_claude_max_turns_rejects_zero_and_booleans() -> None:
+def test_claude_max_turns_ignores_invalid_values() -> None:
     from symphony.providers.claude import ClaudeAdapter
 
     adapter = ClaudeAdapter()
     argv: list[str] = []
-    with pytest.raises(ValueError, match="positive integer"):
-        adapter._apply_max_turns(argv, {"max_turns": 0})
-    with pytest.raises(ValueError, match="positive integer"):
-        adapter._apply_max_turns(argv, {"max_turns": True})
-    with pytest.raises(ValueError, match="positive integer"):
-        adapter._apply_max_turns(argv, {"max_turns": -5})
-    with pytest.raises(ValueError, match="positive integer"):
-        adapter._apply_max_turns(argv, {"max_turns": "five"})
+    # The option is ignored, so even previously-rejected values must neither
+    # raise nor reintroduce the unsupported --max-turns flag.
+    for value in (0, True, -5, "five"):
+        adapter._apply_max_turns(argv, {"max_turns": value})
+    assert argv == []
 
 
-def test_claude_max_turns_accepts_positive_int() -> None:
+def test_claude_max_turns_ignored_when_set() -> None:
     from symphony.providers.claude import ClaudeAdapter
 
     adapter = ClaudeAdapter()
     argv: list[str] = []
     adapter._apply_max_turns(argv, {"max_turns": 7})
-    assert argv == ["--max-turns", "7"]
+    assert argv == []
 
 
 def test_claude_max_turns_noop_when_unset() -> None:
