@@ -74,10 +74,20 @@ class TestNeedsUpdate:
     def test_false_when_current_is_newer(self) -> None:
         assert needs_update("2.0.0", "1.99.99") is False
 
-    def test_falls_back_to_string_compare_on_bad_semver(self) -> None:
-        # Non-numeric parts → _version_tuple raises ValueError → string compare.
-        assert needs_update("1.0.beta", "1.0.beta") is False
+    def test_compares_prerelease_versions(self) -> None:
+        # packaging understands pre-release ordering (beta < rc).
         assert needs_update("1.0.beta", "1.0.rc") is True
+        assert needs_update("1.0.beta", "1.0.beta") is False
+
+    def test_normalises_leading_v_prefix(self) -> None:
+        # Release manifests may write "v1.2.3" while the CLI prints "1.2.3".
+        assert needs_update("v1.2.3", "1.2.3") is False
+        assert needs_update("1.2.3", "v1.2.4") is True
+
+    def test_falls_back_to_string_compare_when_unparseable(self) -> None:
+        # Unrecognisable labels (e.g. build hashes) → conservative string compare.
+        assert needs_update("build-abc", "build-abc") is False
+        assert needs_update("build-abc", "build-def") is True
 
 
 # ---------------------------------------------------------------------------

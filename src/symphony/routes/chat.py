@@ -42,6 +42,9 @@ async def chat(request: Request, body: ChatRequest) -> ChatAcceptedResponse:
 
     handle = ScoreHandle(provider=body.provider, model=body.model)
     orchestra.register_score(handle)
+    # Persist the initial snapshot off the event loop (via to_thread) so the
+    # durable record exists before we return 202 without blocking on disk I/O.
+    await orchestra.persist_snapshot(handle.snapshot())
     await musician.submit(body, handle)
     return ChatAcceptedResponse(
         score_id=handle.score_id,

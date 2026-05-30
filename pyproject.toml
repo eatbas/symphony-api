@@ -14,6 +14,7 @@ dependencies = [
   "pydantic>=2.12,<3.0",
   "httpx>=0.28,<1.0",
   "python-dotenv>=1.0,<2.0",
+  "packaging>=24,<27",  # foundational dep; wide pin avoids resolver conflicts
   # Antigravity (`agy --print`) refuses to write to non-TTY stdout on
   # Windows. The adapter wraps it in a pseudo-terminal via the
   # in-tree ``agy_pty_runner`` module, which talks to ConPTY (Windows

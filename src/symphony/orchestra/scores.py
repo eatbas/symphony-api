@@ -36,10 +36,14 @@ def register_score(
     *,
     max_scores: int,
 ) -> None:
-    """Store a score handle so it can be looked up for cancellation."""
+    """Register a score handle in memory so it can be looked up and cancelled.
+
+    The initial durable snapshot is persisted by the caller via
+    :meth:`Orchestra.persist_snapshot` (off the event loop), keeping this
+    hot-path function free of blocking disk I/O.
+    """
     handle.set_persist_callback(orchestra.persist_snapshot)
     orchestra._scores[handle.score_id] = handle
-    orchestra.score_store.save(handle.snapshot())
     evict_old_scores(orchestra, max_scores=max_scores)
 
 
@@ -96,6 +100,9 @@ def restore_scores(orchestra: "Orchestra", *, max_scores: int) -> None:
         orchestra._scores[handle.score_id] = handle
 
     evict_old_scores(orchestra, max_scores=max_scores)
+    # Enforce the on-disk cap deterministically at boot, since per-save
+    # pruning is now throttled.
+    orchestra.score_store.prune()
 
 
 def find_musician_for_score(orchestra: "Orchestra", handle: ScoreHandle) -> Musician | None:

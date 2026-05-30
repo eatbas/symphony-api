@@ -11,7 +11,6 @@ from symphony.updater import (
     CLIUpdater,
     PACKAGE_REGISTRY,
     _parse_version,
-    _version_tuple,
 )
 from symphony.orchestra import Orchestra
 
@@ -35,16 +34,6 @@ class TestParseVersion:
     def test_multiline_output(self):
         output = "Antigravity CLI\nVersion: 0.5.2\nNode.js v20.0.0"
         assert _parse_version(output) == "0.5.2"
-
-
-class TestVersionTuple:
-    def test_basic(self):
-        assert _version_tuple("1.2.3") == (1, 2, 3)
-
-    def test_comparison(self):
-        assert _version_tuple("1.2.3") < _version_tuple("1.3.0")
-        assert _version_tuple("2.0.0") > _version_tuple("1.99.99")
-        assert _version_tuple("1.0.0") == _version_tuple("1.0.0")
 
 
 class TestPackageRegistry:

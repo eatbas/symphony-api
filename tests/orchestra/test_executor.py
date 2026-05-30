@@ -5,7 +5,7 @@ import asyncio
 import dataclasses
 import re
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -63,6 +63,49 @@ async def test_cancelled_in_queue_publishes_stopped_event(loaded_config) -> None
         types = [e.get("type") for e in events]
         assert "stopped" in types
         assert handle.status == ScoreStatus.STOPPED
+
+
+@pytest.mark.asyncio
+async def test_output_line_after_cancellation_is_ignored(loaded_config) -> None:
+    """A CLI line delivered to ``on_line`` after the score is cancelled is
+    dropped by the executor's guard instead of being parsed and published.
+
+    Drives ``on_line`` deterministically via a fake ``run_script`` (the real
+    schedule of post-cancel output is otherwise racy), with ``interrupt`` and
+    ``start`` stubbed so the cancel watcher cannot touch the real shell.
+    """
+    async with started_orchestra(loaded_config) as manager:
+        musician = manager.get_musician(InstrumentName.CLAUDE, "opus")
+        assert musician is not None
+
+        handle = ScoreHandle(provider=InstrumentName.CLAUDE, model="opus")
+
+        async def fake_run_script(_script, on_line) -> int:
+            # First line is processed normally...
+            await on_line(
+                '{"type":"assistant","message":{"content":'
+                '[{"type":"text","text":"kept"}]}}'
+            )
+            # ...then cancellation arrives mid-run, so the next line must be
+            # ignored by the ``handle.cancelled`` guard in ``on_line``.
+            handle.cancelled.set()
+            await on_line(
+                '{"type":"assistant","message":{"content":'
+                '[{"type":"text","text":"dropped"}]}}'
+            )
+            return 0
+
+        with (
+            patch.object(musician.shell, "run_script", fake_run_script),
+            patch.object(musician.shell, "interrupt", AsyncMock()),
+            patch.object(musician.shell, "start", AsyncMock()),
+        ):
+            await musician.submit(_new_request(InstrumentName.CLAUDE, "opus"), handle)
+            with pytest.raises(ScoreCancelledError):
+                await asyncio.wait_for(handle.result_future, timeout=5.0)
+
+        assert "kept" in handle.accumulated_text
+        assert "dropped" not in handle.accumulated_text
 
 
 @pytest.mark.asyncio

@@ -5,6 +5,8 @@ import re
 import shutil
 from dataclasses import dataclass
 
+from packaging.version import InvalidVersion, Version
+
 from ..models import InstrumentName
 
 _VERSION_RE = re.compile(r"(\d+\.\d+\.\d+)")
@@ -55,8 +57,17 @@ def _parse_version(text: str) -> str | None:
     return match.group(1) if match else None
 
 
-def _version_tuple(version: str) -> tuple[int, ...]:
-    return tuple(int(part) for part in version.split("."))
+def _coerce_version(value: str) -> Version | None:
+    """Parse a version string into a comparable :class:`Version`.
+
+    Tolerates a leading ``v`` (release manifests often write ``v1.2.3`` while
+    the CLI prints ``1.2.3``) and returns ``None`` for anything PEP 440 cannot
+    parse, so callers can fall back to a conservative comparison.
+    """
+    try:
+        return Version(value.strip().lstrip("vV"))
+    except InvalidVersion:
+        return None
 
 
 def detect_install_method(executable: str) -> str:
@@ -79,10 +90,17 @@ def detect_install_method(executable: str) -> str:
 
 
 def needs_update(current: str | None, latest: str | None) -> bool:
-    """Return True when *current* is older than *latest* (semver comparison)."""
+    """Return True when *current* is older than *latest*.
+
+    Uses :mod:`packaging.version` so pre-release, build-metadata, and
+    N-segment versions compare correctly.  When either value is not a
+    recognisable version (e.g. a build hash) it falls back to a conservative
+    string inequality rather than risking a spurious update.
+    """
     if not current or not latest:
         return False
-    try:
-        return _version_tuple(current) < _version_tuple(latest)
-    except (ValueError, TypeError):
+    current_version = _coerce_version(current)
+    latest_version = _coerce_version(latest)
+    if current_version is None or latest_version is None:
         return current != latest
+    return current_version < latest_version

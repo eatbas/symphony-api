@@ -1,5 +1,7 @@
 # Symphony API
 
+[![CI](https://github.com/eatbas/symphony-api/actions/workflows/ci.yml/badge.svg)](https://github.com/eatbas/symphony-api/actions/workflows/ci.yml)
+
 Symphony -- coordinated AI CLI orchestra for **Antigravity**, **Codex**, **Claude**, **Kimi**, and **OpenCode** (OpenRouter-backed).
 
 ## What it does

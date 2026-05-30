@@ -75,7 +75,7 @@ class TestLoadAll:
 
 class TestPruneTerminalScores:
     def test_removes_oldest_when_limit_exceeded(self, tmp_path: Path) -> None:
-        store = _store(tmp_path, max_terminal_scores=2)
+        store = _store(tmp_path, max_terminal_scores=2, prune_interval=1)
         # Save three terminal snapshots with distinct updated_at values.
         store.save(
             make_snapshot(
@@ -102,7 +102,7 @@ class TestPruneTerminalScores:
         assert remaining == {"middle", "newest"}
 
     def test_skips_non_terminal_snapshots(self, tmp_path: Path) -> None:
-        store = _store(tmp_path, max_terminal_scores=1)
+        store = _store(tmp_path, max_terminal_scores=1, prune_interval=1)
         store.save(make_snapshot(score_id="running", status=ScoreStatus.RUNNING))
         store.save(make_snapshot(score_id="queued", status=ScoreStatus.QUEUED))
         store.save(
@@ -116,7 +116,7 @@ class TestPruneTerminalScores:
         assert {s.score_id for s in store.load_all()} == {"running", "queued", "done"}
 
     def test_skips_unreadable_files_during_prune(self, tmp_path: Path) -> None:
-        store = _store(tmp_path, max_terminal_scores=10)
+        store = _store(tmp_path, max_terminal_scores=10, prune_interval=1)
         (store.root / "broken.json").write_text("garbage")
         # Saving a real snapshot triggers _prune_terminal_scores_locked,
         # which must skip the unreadable file without raising.
@@ -128,6 +128,31 @@ class TestPruneTerminalScores:
         # The default limit is well above one entry; ensure single save survives.
         store.save(make_snapshot(score_id="one", status=ScoreStatus.COMPLETED))
         assert store.load("one") is not None
+
+    def test_save_defers_pruning_until_interval_then_prune_enforces_cap(
+        self, tmp_path: Path
+    ) -> None:
+        store = _store(tmp_path, max_terminal_scores=1, prune_interval=3)
+        store.save(
+            make_snapshot(
+                score_id="old",
+                status=ScoreStatus.COMPLETED,
+                updated_at="2024-01-01T00:00:00+00:00",
+            )
+        )
+        store.save(
+            make_snapshot(
+                score_id="new",
+                status=ScoreStatus.COMPLETED,
+                updated_at="2024-01-02T00:00:00+00:00",
+            )
+        )
+        # Two saves is below the prune interval of 3, so the cap is not yet
+        # enforced even though the terminal count already exceeds it.
+        assert {s.score_id for s in store.load_all()} == {"old", "new"}
+        # An explicit prune enforces the limit immediately, keeping the newest.
+        store.prune()
+        assert {s.score_id for s in store.load_all()} == {"new"}
 
 
 class TestPathFor:

@@ -73,7 +73,7 @@ def test_claude_resume_command_uses_resume_flag():
     assert "--session-id" not in command.argv
 
 
-def test_claude_resume_command_accepts_max_turns_override():
+def test_claude_resume_command_ignores_max_turns():
     adapter = ClaudeAdapter()
     command = adapter.build_command(
         executable="claude",
@@ -83,9 +83,9 @@ def test_claude_resume_command_accepts_max_turns_override():
         session_ref="abc-123",
         provider_options={"max_turns": 200},
     )
-    assert "--max-turns" in command.argv
-    max_turns_index = command.argv.index("--max-turns")
-    assert command.argv[max_turns_index + 1] == "200"
+    # claude CLI >= 2.1.x no longer accepts --max-turns; the option is ignored.
+    assert "--max-turns" not in command.argv
+    assert "200" not in command.argv
 
 
 def test_claude_command_accepts_thinking_level():

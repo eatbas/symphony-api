@@ -166,26 +166,20 @@ async def test_health_details_reports_musician_errors(loaded_config):
 @pytest.mark.asyncio()
 async def test_unavailable_provider_skips_musician_creation(loaded_config):
     """When a CLI is not found, no musicians should be created for that provider."""
-    import shutil
-    from pathlib import Path as _RealPath
+    import symphony.providers.base as provider_base
 
-    original_which = shutil.which
-    _original_is_file = _RealPath.is_file
+    real_check_cli_available = provider_base.check_cli_available
 
-    def _fake_which(cmd: str, **kwargs) -> str | None:  # type: ignore[override]
-        if "claude" in str(cmd):
-            return None
-        return original_which(cmd, **kwargs)
-
-    def _fake_is_file(self: _RealPath) -> bool:
-        if "claude" in str(self):
+    def _fake_check(executable: str) -> bool:
+        # Identify the claude CLI by its wrapper basename, not by a substring
+        # of the full path: the test's temp directory can itself contain
+        # "claude" (e.g. when pytest runs under a ``…/Temp/claude`` working
+        # directory), which would otherwise mark every provider unavailable.
+        if Path(executable).name.startswith("claude"):
             return False
-        return _original_is_file(self)
+        return real_check_cli_available(executable)
 
-    with (
-        patch("symphony.providers.base.shutil.which", side_effect=_fake_which),
-        patch("symphony.providers.base.Path.is_file", _fake_is_file),
-    ):
+    with patch("symphony.providers.base.check_cli_available", _fake_check):
         manager = Orchestra(loaded_config)
         await manager.start()
         try:
