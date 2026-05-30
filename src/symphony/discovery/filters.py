@@ -16,14 +16,14 @@ import re
 
 
 def filter_codex(models: list[str]) -> list[str]:
-    """Keep only GPT models at version 5.2 or above."""
+    """Keep only GPT models at version 5.4 or above."""
     result: list[str] = []
     for m in models:
         match = re.match(r"gpt-(\d+)(?:\.(\d+))?", m)
         if match:
             major = int(match.group(1))
             minor = int(match.group(2)) if match.group(2) else 0
-            if (major, minor) >= (5, 2):
+            if (major, minor) >= (5, 4):
                 result.append(m)
         else:
             result.append(m)

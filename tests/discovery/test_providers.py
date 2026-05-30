@@ -233,17 +233,18 @@ class TestDiscoverCodex:
             json.dumps(
                 {
                     "models": [
-                        {"slug": "gpt-5.3", "visibility": "list"},
+                        {"slug": "gpt-5.3", "visibility": "list"},  # below 5.4 floor -> filtered
                         {"slug": "gpt-5.4", "visibility": "list"},
-                        {"slug": "gpt-4-old", "visibility": "list"},  # filtered out
-                        {"slug": "gpt-5.5-hidden", "visibility": "hidden"},
+                        {"slug": "gpt-5.5", "visibility": "list"},
+                        {"slug": "gpt-4-old", "visibility": "list"},  # filtered out (old)
+                        {"slug": "gpt-5.6-hidden", "visibility": "hidden"},  # skipped (hidden)
                         {"slug": "", "visibility": "list"},  # empty skipped
                     ]
                 }
             )
         )
         monkeypatch.setattr(Path, "home", classmethod(lambda _cls: tmp_path))
-        assert _discover_codex() == ["gpt-5.3", "gpt-5.4"]
+        assert _discover_codex() == ["gpt-5.4", "gpt-5.5"]
 
     def test_returns_none_when_no_models_left(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
