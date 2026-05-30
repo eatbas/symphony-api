@@ -7,16 +7,28 @@ from .models import ScoreSnapshot
 from .models.enums import TERMINAL_STATUSES
 
 _MAX_TERMINAL_SCORES = 1000
+# Pruning scans and parses every snapshot file on disk, so running it on every
+# save makes a long, chatty run quadratic (each streamed delta persists the
+# snapshot).  Prune at most once per this many saves instead; the on-disk set
+# therefore stays within ``max_terminal_scores + _PRUNE_INTERVAL``.
+_PRUNE_INTERVAL = 50
 
 
 class ScoreStore:
     """Disk-backed storage for Symphony score snapshots."""
 
-    def __init__(self, root: Path | None = None, max_terminal_scores: int = _MAX_TERMINAL_SCORES) -> None:
+    def __init__(
+        self,
+        root: Path | None = None,
+        max_terminal_scores: int = _MAX_TERMINAL_SCORES,
+        prune_interval: int = _PRUNE_INTERVAL,
+    ) -> None:
         base = root or (Path.home() / ".maestro" / "symphony" / "scores")
         base = base.expanduser()
         self.root = base
         self.max_terminal_scores = max_terminal_scores
+        self.prune_interval = max(1, prune_interval)
+        self._saves_since_prune = 0
         self._lock = threading.Lock()
         self.root.mkdir(parents=True, exist_ok=True)
 
@@ -30,7 +42,21 @@ class ScoreStore:
             tmp_path = path.with_suffix(".json.tmp")
             tmp_path.write_text(snapshot.model_dump_json(indent=2), encoding="utf-8")
             tmp_path.replace(path)
+            self._saves_since_prune += 1
+            if self._saves_since_prune >= self.prune_interval:
+                self._prune_terminal_scores_locked()
+                self._saves_since_prune = 0
+
+    def prune(self) -> None:
+        """Force an immediate prune of excess terminal snapshots.
+
+        Called on boot and available for periodic maintenance so the throttled
+        per-save pruning cannot let the on-disk set drift above the configured
+        cap for long.
+        """
+        with self._lock:
             self._prune_terminal_scores_locked()
+            self._saves_since_prune = 0
 
     def load(self, score_id: str) -> ScoreSnapshot | None:
         path = self.path_for(score_id)
