@@ -1,3 +1,5 @@
+name: symphony
+
 services:
   symphony-web:
     build:
@@ -14,6 +16,11 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    labels:
+      kuma.symphony.group.name: "symphony"
+      kuma.symphony-web.http.name: "website"
+      kuma.symphony-web.http.parent_name: "symphony"
+      kuma.symphony-web.http.url: "https://symphony.atbas.xyz"
 
 networks:
   ea-ingress:
